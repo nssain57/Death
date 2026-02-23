@@ -3,128 +3,205 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Heart Runner ❤️</title>
+<title>Runner Game</title>
 
 <style>
-body {
-  margin: 0;
-  overflow: hidden;
-  background: linear-gradient(to top, #ffe6f0, #ffffff);
-  font-family: Arial, sans-serif;
+body{
+  margin:0;
+  overflow:hidden;
+  background:#f7f7f7;
+  font-family:Arial;
 }
 
-#game {
-  width: 100%;
-  height: 100vh;
-  position: relative;
-  overflow: hidden;
+canvas{
+  display:block;
 }
 
-#heart {
-  position: absolute;
-  bottom: 60px;
-  left: 8%;
-  font-size: 8vw;
-  transition: bottom 0.3s ease;
-}
-
-#obstacle {
-  position: absolute;
-  bottom: 60px;
-  width: 5vw;
-  height: 8vw;
-  background: black;
-  right: -10vw;
-}
-
-#score {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  font-size: 5vw;
-}
-
-@media (min-width: 768px) {
-  #heart { font-size: 40px; }
-  #obstacle { width: 25px; height: 50px; }
-  #score { font-size: 20px; }
+#scoreBoard{
+  position:absolute;
+  top:20px;
+  right:20px;
+  font-size:18px;
 }
 </style>
 </head>
 <body>
 
-<div id="game">
-  <div id="heart">❤️</div>
-  <div id="obstacle"></div>
-  <div id="score">Score: 0</div>
-</div>
+<canvas id="game"></canvas>
+<div id="scoreBoard">Score: 0 | High: 0</div>
 
 <script>
-const heart = document.getElementById("heart");
-const obstacle = document.getElementById("obstacle");
-const scoreDisplay = document.getElementById("score");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const scoreBoard = document.getElementById("scoreBoard");
 
-let score = 0;
-let speed = 6; // initial speed
-let isJumping = false;
-let isAlive = true;
-let obstacleX = window.innerWidth;
-
-// Jump function
-function jump() {
-  if (isJumping) return;
-  isJumping = true;
-
-  let jumpHeight = 150;
-  if (window.innerWidth < 600) jumpHeight = 120;
-
-  heart.style.bottom = jumpHeight + "px";
-
-  setTimeout(() => {
-    heart.style.bottom = "60px";
-    isJumping = false;
-  }, 400);
+function resize(){
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 }
+resize();
+window.addEventListener("resize", resize);
 
-document.addEventListener("keydown", jump);
-document.addEventListener("touchstart", jump);
-document.addEventListener("click", jump);
+let gravity = 0.8;
+let gameSpeed = 6;
+let score = 0;
+let highScore = localStorage.getItem("highScore") || 0;
+let obstacles = [];
+let clouds = [];
+let frame = 0;
+let night = false;
 
-// Game Loop
-function gameLoop() {
-  if (!isAlive) return;
-
-  obstacleX -= speed;
-  obstacle.style.left = obstacleX + "px";
-
-  const heartRect = heart.getBoundingClientRect();
-  const obstacleRect = obstacle.getBoundingClientRect();
-
-  // Collision detection
-  if (
-    heartRect.right > obstacleRect.left &&
-    heartRect.left < obstacleRect.right &&
-    heartRect.bottom > obstacleRect.top
-  ) {
-    isAlive = false;
-    alert("Game Over ❤️ Your Score: " + score);
-    location.reload();
+class Player{
+  constructor(){
+    this.width = 40;
+    this.height = 40;
+    this.x = 80;
+    this.y = canvas.height - this.height - 50;
+    this.dy = 0;
+    this.jumpForce = 15;
+    this.grounded = true;
   }
 
-  // Reset obstacle
-  if (obstacleX < -50) {
-    obstacleX = window.innerWidth;
-    score++;
-    scoreDisplay.textContent = "Score: " + score;
+  draw(){
+    ctx.fillStyle = "#000";
+    ctx.fillRect(this.x,this.y,this.width,this.height);
+  }
 
-    // Increase difficulty
-    if (score % 5 === 0) {
-      speed += 1;
+  update(){
+    this.y += this.dy;
+
+    if(this.y + this.height < canvas.height - 50){
+      this.dy += gravity;
+      this.grounded = false;
+    } else {
+      this.dy = 0;
+      this.grounded = true;
+      this.y = canvas.height - this.height - 50;
     }
+    this.draw();
+  }
+
+  jump(){
+    if(this.grounded){
+      this.dy = -this.jumpForce;
+    }
+  }
+}
+
+class Obstacle{
+  constructor(type){
+    this.width = 20 + Math.random()*20;
+    this.height = type === "bird" ? 30 : 40;
+    this.x = canvas.width;
+    this.y = type === "bird" 
+      ? canvas.height - 150 
+      : canvas.height - this.height - 50;
+  }
+
+  draw(){
+    ctx.fillStyle = "#222";
+    ctx.fillRect(this.x,this.y,this.width,this.height);
+  }
+
+  update(){
+    this.x -= gameSpeed;
+    this.draw();
+  }
+}
+
+class Cloud{
+  constructor(){
+    this.x = canvas.width;
+    this.y = Math.random()*200;
+    this.size = 30 + Math.random()*20;
+  }
+
+  draw(){
+    ctx.fillStyle="#ccc";
+    ctx.beginPath();
+    ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  update(){
+    this.x -= 2;
+    this.draw();
+  }
+}
+
+const player = new Player();
+
+function spawnObstacle(){
+  const type = Math.random() < 0.7 ? "cactus" : "bird";
+  obstacles.push(new Obstacle(type));
+}
+
+function spawnCloud(){
+  clouds.push(new Cloud());
+}
+
+function detectCollision(rect1,rect2){
+  return rect1.x < rect2.x + rect2.width &&
+         rect1.x + rect1.width > rect2.x &&
+         rect1.y < rect2.y + rect2.height &&
+         rect1.y + rect1.height > rect2.y;
+}
+
+function gameLoop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Night mode toggle
+  if(score > 0 && score % 50 === 0){
+    night = !night;
+  }
+
+  document.body.style.background = night ? "#111" : "#f7f7f7";
+  ctx.fillStyle = night ? "#fff" : "#000";
+
+  frame++;
+
+  if(frame % 90 === 0){
+    spawnObstacle();
+  }
+
+  if(frame % 150 === 0){
+    spawnCloud();
+  }
+
+  clouds.forEach((cloud,i)=>{
+    cloud.update();
+    if(cloud.x < -50) clouds.splice(i,1);
+  });
+
+  obstacles.forEach((obs,i)=>{
+    obs.update();
+    if(detectCollision(player,obs)){
+      alert("Game Over! Score: "+score);
+      location.reload();
+    }
+    if(obs.x < -50){
+      obstacles.splice(i,1);
+      score++;
+      if(score % 10 === 0){
+        gameSpeed += 0.5;
+      }
+    }
+  });
+
+  player.update();
+
+  scoreBoard.innerText = "Score: "+score+" | High: "+highScore;
+
+  if(score > highScore){
+    localStorage.setItem("highScore",score);
   }
 
   requestAnimationFrame(gameLoop);
 }
+
+document.addEventListener("keydown", ()=> player.jump());
+document.addEventListener("touchstart", ()=> player.jump());
+document.addEventListener("click", ()=> player.jump());
 
 gameLoop();
 </script>
