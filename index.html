@@ -1,144 +1,133 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>For Khushi ❤️</title>
+<title>Heart Runner ❤️</title>
+
 <style>
-html,body{height:100%;margin:0}
-body{
-  font-family:monospace, monospace;
-  background:url('bg.jpg') center/cover no-repeat fixed;
-  display:flex;align-items:center;justify-content:center;
-  overflow:hidden;position:relative;
-}
-.container{
-  position:relative;width:100%;max-width:420px;height:100dvh;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:18px 14px 20px;box-sizing:border-box;text-align:center;
-}
-h1{
-  color:#ff4fa3;font-size:20px;line-height:1.5;margin-bottom:18px;
-  font-weight:700;text-shadow:0 2px 10px rgba(255,255,255,.6);
-}
-.buttons{
-  margin-top:12px;width:100%;max-width:300px;
-  display:flex;justify-content:space-between;align-items:center;position:relative;
-}
-button{
-  padding:14px 26px;font-size:18px;border:none;border-radius:28px;
-  cursor:pointer;transition:.2s ease;
-}
-#yes{background:#ff6fb7;color:white;box-shadow:0 6px 18px rgba(255,0,120,.35)}
-#yes:active{transform:scale(.94)}
-#no{position:absolute;left:0;background:#555;color:white}
-
-.mediaRow{
-  display:none;width:100%;align-items:center;justify-content:space-between;margin-top:10px;
-  position:relative;
-}
-.photoWrap{position:relative;width:44vw;max-width:170px;height:42vh}
-#photo{width:100%;height:100%;object-fit:cover;border-radius:20px;box-shadow:0 10px 25px rgba(0,0,0,.35);opacity:0}
-#flower{width:44vw;max-width:170px;height:42vh;object-fit:cover;border-radius:20px;box-shadow:0 10px 25px rgba(0,0,0,.35);opacity:0}
-
-.slideLeft{animation:slideLeft .9s ease forwards}
-.slideRight{animation:slideRight .9s ease forwards}
-@keyframes slideLeft{from{transform:translateX(-120px);opacity:0}to{transform:translateX(0);opacity:1}}
-@keyframes slideRight{from{transform:translateX(120px);opacity:0}to{transform:translateX(0);opacity:1}}
-
-#messageWrapper{
-  display:none;position:relative;width:90%;margin-top:14px;
-  border-radius:16px;background:rgba(255,255,255,0.35);backdrop-filter:blur(6px);padding:12px 10px;
-}
-#message{
-  font-size:19px;color:#ff2f92;font-weight:700;text-shadow:0 1px 6px rgba(255,255,255,.7);
+body {
+  margin: 0;
+  overflow: hidden;
+  background: linear-gradient(to top, #ffe6f0, #ffffff);
+  font-family: Arial, sans-serif;
 }
 
-.butterflyGif{
-  position:absolute;width:500px;pointer-events:none;opacity:0;z-index:5;
+#game {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
 }
-.orbit{animation:orbit 6s linear infinite}
-@keyframes orbit{
-  from{transform:rotate(0deg) translateX(150px) rotate(0deg)}
-  to{transform:rotate(360deg) translateX(150px) rotate(-360deg)}
+
+#heart {
+  position: absolute;
+  bottom: 60px;
+  left: 8%;
+  font-size: 8vw;
+  transition: bottom 0.3s ease;
 }
-.show{opacity:1}
+
+#obstacle {
+  position: absolute;
+  bottom: 60px;
+  width: 5vw;
+  height: 8vw;
+  background: black;
+  right: -10vw;
+}
+
+#score {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 5vw;
+}
+
+@media (min-width: 768px) {
+  #heart { font-size: 40px; }
+  #obstacle { width: 25px; height: 50px; }
+  #score { font-size: 20px; }
+}
 </style>
 </head>
 <body>
-<div class="container" id="box">
-<h1 id="question">
-hey khushi kaisi ho tum. Okay m btata 🫣 hu.<br>
-Tum bahut pyaari 😚 ho. Tum bahut cutie 🥰 ho<br>
-aur tum bahut bahut pretty 🎉💐😘 ho.<br>
-aur ha tum meri bahut phle se favourite ho 💕<br><br>
-Aaj valentine h so...<br>
-<b>Khushi will be my girlfriend 🌹?</b>
-</h1>
 
-<div class="buttons">
-<button id="no">NO 😜</button>
-<button id="yes">YES 💕</button>
+<div id="game">
+  <div id="heart">❤️</div>
+  <div id="obstacle"></div>
+  <div id="score">Score: 0</div>
 </div>
-
-<div class="mediaRow" id="mediaRow">
-<div class="photoWrap" id="photoWrap">
-<img src="khushi.jpg" id="photo">
-<img src="dezyne_3d-butterflies-25807_512.gif" class="butterflyGif" id="b1">
-<img src="dezyne_3d-butterflies-25807_512.gif" class="butterflyGif" id="b2">
-<img src="dezyne_3d-butterflies-25807_512.gif" class="butterflyGif" id="b3">
-</div>
-<img src="_.jpeg" id="flower">
-</div>
-
-<div id="messageWrapper">
-<div id="message">
-khushi 🥰 yaar i love you so much 🎉💐 aur bahut phle se hi yaar ⌛
-</div>
-</div>
-
-</div>
-
-<audio id="music" preload="auto"><source src="song.mp3" type="audio/mpeg"></audio>
 
 <script>
-const noBtn=document.getElementById('no');
-const yesBtn=document.getElementById('yes');
-const photo=document.getElementById('photo');
-const flower=document.getElementById('flower');
-const music=document.getElementById('music');
-const question=document.getElementById('question');
-const messageWrapper=document.getElementById('messageWrapper');
-const mediaRow=document.getElementById('mediaRow');
-const b1=document.getElementById('b1');
-const b2=document.getElementById('b2');
-const b3=document.getElementById('b3');
+const heart = document.getElementById("heart");
+const obstacle = document.getElementById("obstacle");
+const scoreDisplay = document.getElementById("score");
 
-function moveNo(){
-  const rect=document.getElementById('box').getBoundingClientRect();
-  const maxX=rect.width-noBtn.offsetWidth;
-  const maxY=120;
-  noBtn.style.left=Math.random()*maxX+'px';
-  noBtn.style.top=Math.random()*maxY+'px';
+let score = 0;
+let speed = 6; // initial speed
+let isJumping = false;
+let isAlive = true;
+let obstacleX = window.innerWidth;
+
+// Jump function
+function jump() {
+  if (isJumping) return;
+  isJumping = true;
+
+  let jumpHeight = 150;
+  if (window.innerWidth < 600) jumpHeight = 120;
+
+  heart.style.bottom = jumpHeight + "px";
+
+  setTimeout(() => {
+    heart.style.bottom = "60px";
+    isJumping = false;
+  }, 400);
 }
-noBtn.addEventListener('touchstart',e=>{e.preventDefault();moveNo()});
-noBtn.addEventListener('mouseover',moveNo);
 
-yesBtn.addEventListener('click',()=>{
-  question.style.display='none';
-  mediaRow.style.display='flex';
-  messageWrapper.style.display='block';
-  photo.classList.add('slideLeft');
-  flower.classList.add('slideRight');
-  music.currentTime=0;music.play().catch(()=>{});
+document.addEventListener("keydown", jump);
+document.addEventListener("touchstart", jump);
+document.addEventListener("click", jump);
 
-  // butterflies above both photos
-  [b1,b2,b3].forEach((b,i)=>{
-    b.classList.add('show','orbit');
-    b.style.top='-60px'; // upar se photos ke upar start
-    b.style.animationDelay=(i*1.2)+'s';
-  });
-});
+// Game Loop
+function gameLoop() {
+  if (!isAlive) return;
+
+  obstacleX -= speed;
+  obstacle.style.left = obstacleX + "px";
+
+  const heartRect = heart.getBoundingClientRect();
+  const obstacleRect = obstacle.getBoundingClientRect();
+
+  // Collision detection
+  if (
+    heartRect.right > obstacleRect.left &&
+    heartRect.left < obstacleRect.right &&
+    heartRect.bottom > obstacleRect.top
+  ) {
+    isAlive = false;
+    alert("Game Over ❤️ Your Score: " + score);
+    location.reload();
+  }
+
+  // Reset obstacle
+  if (obstacleX < -50) {
+    obstacleX = window.innerWidth;
+    score++;
+    scoreDisplay.textContent = "Score: " + score;
+
+    // Increase difficulty
+    if (score % 5 === 0) {
+      speed += 1;
+    }
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
 </script>
+
 </body>
 </html>
