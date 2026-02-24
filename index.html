@@ -1,155 +1,137 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Heart Runner ❤️</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dino Game</title>
 <style>
 body{
-margin:0;
-overflow:hidden;
-background:#111;
+  margin:0;
+  overflow:hidden;
+  background:#111;
 }
-canvas{
-display:block;
-margin:auto;
-background:#222;
+
+#game{
+  width:100%;
+  height:200px;
+  background:#222;
+  position:relative;
+  border-bottom:4px solid white;
+}
+
+#dino{
+  width:40px;
+  height:40px;
+  background:lime;
+  position:absolute;
+  bottom:0;
+  left:50px;
+  border-radius:8px;
+}
+
+#cactus{
+  width:25px;
+  height:50px;
+  background:red;
+  position:absolute;
+  bottom:0;
+  right:-50px;
+}
+
+#score{
+  color:white;
+  position:absolute;
+  top:10px;
+  right:20px;
+  font-size:18px;
 }
 </style>
 </head>
 <body>
 
-<canvas id="game"></canvas>
+<div id="game">
+  <div id="dino"></div>
+  <div id="cactus"></div>
+  <div id="score">0</div>
+</div>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+let dino = document.getElementById("dino");
+let cactus = document.getElementById("cactus");
+let scoreText = document.getElementById("score");
 
-canvas.width = window.innerWidth;
-canvas.height = 200;
-
-let heart = {
-    x: 50,
-    y: 150,
-    size: 30,
-    velocity: 0,
-    gravity: 0.8,
-    jumpPower: -12,
-    grounded: true
-};
-
-let obstacles = [];
-let speed = 6;
+let isJumping = false;
 let score = 0;
 let gameOver = false;
 
-// Draw Heart
-function drawHeart(x, y, size){
-    ctx.fillStyle = "red";
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.bezierCurveTo(x, y - size/2, x - size, y - size/2, x - size, y);
-    ctx.bezierCurveTo(x - size, y + size/2, x, y + size, x, y + size);
-    ctx.bezierCurveTo(x, y + size, x + size, y + size/2, x + size, y);
-    ctx.bezierCurveTo(x + size, y - size/2, x, y - size/2, x, y);
-    ctx.fill();
-}
-
-// Create obstacle
-function createObstacle(){
-    obstacles.push({
-        x: canvas.width,
-        y: 160,
-        width: 20,
-        height: 40
-    });
-}
-
-// Game Loop
-function update(){
-    if(gameOver){
-        ctx.fillStyle="white";
-        ctx.font="30px Arial";
-        ctx.fillText("Game Over 💔 Press Space", 50, 100);
-        return;
-    }
-
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    // Ground
-    ctx.fillStyle="#444";
-    ctx.fillRect(0,180,canvas.width,20);
-
-    // Heart Physics
-    heart.velocity += heart.gravity;
-    heart.y += heart.velocity;
-
-    if(heart.y >= 150){
-        heart.y = 150;
-        heart.velocity = 0;
-        heart.grounded = true;
-    }
-
-    drawHeart(heart.x, heart.y, heart.size);
-
-    // Obstacles
-    obstacles.forEach((obs,index)=>{
-        obs.x -= speed;
-        ctx.fillStyle="lime";
-        ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-
-        // Collision
-        if(
-            heart.x < obs.x + obs.width &&
-            heart.x + heart.size > obs.x &&
-            heart.y + heart.size > obs.y
-        ){
-            gameOver = true;
-        }
-
-        if(obs.x + obs.width < 0){
-            obstacles.splice(index,1);
-            score++;
-        }
-    });
-
-    ctx.fillStyle="white";
-    ctx.fillText("Score: " + score, 20, 30);
-
-    requestAnimationFrame(update);
-}
-
 // Jump
-document.addEventListener("keydown", (e)=>{
-    if(e.code === "Space"){
-        if(gameOver){
-            obstacles=[];
-            score=0;
-            gameOver=false;
-        }
-        if(heart.grounded){
-            heart.velocity = heart.jumpPower;
-            heart.grounded = false;
-        }
-    }
-});
+function jump(){
+  if(isJumping || gameOver) return;
+  isJumping = true;
+  let up = 0;
 
-// Mobile tap
-document.addEventListener("touchstart", ()=>{
+  let jumpUp = setInterval(()=>{
+    if(up >= 100){
+      clearInterval(jumpUp);
+
+      let down = setInterval(()=>{
+        if(up <= 0){
+          clearInterval(down);
+          isJumping = false;
+        }
+        up -= 5;
+        dino.style.bottom = up + "px";
+      },20);
+
+    }
+    up += 5;
+    dino.style.bottom = up + "px";
+  },20);
+}
+
+// Obstacle Move
+function moveCactus(){
+  let pos = window.innerWidth;
+  cactus.style.right = "-50px";
+
+  let move = setInterval(()=>{
     if(gameOver){
-        obstacles=[];
-        score=0;
-        gameOver=false;
+      clearInterval(move);
+      return;
     }
-    if(heart.grounded){
-        heart.velocity = heart.jumpPower;
-        heart.grounded = false;
+
+    pos -= 5;
+    cactus.style.right = (window.innerWidth - pos) + "px";
+
+    let dinoBottom = parseInt(window.getComputedStyle(dino).bottom);
+    let cactusLeft = cactus.getBoundingClientRect().left;
+    let dinoLeft = dino.getBoundingClientRect().left;
+
+    if(cactusLeft < dinoLeft + 40 && cactusLeft > dinoLeft && dinoBottom < 40){
+      gameOver = true;
+      alert("Game Over! Score: " + score);
+      location.reload();
     }
+
+    if(pos <= -50){
+      score++;
+      scoreText.innerText = score;
+      pos = window.innerWidth;
+    }
+
+  },20);
+}
+
+moveCactus();
+
+document.addEventListener("keydown",(e)=>{
+  if(e.code === "Space"){
+    jump();
+  }
 });
 
-// Spawn obstacle
-setInterval(createObstacle,1500);
-
-update();
+document.addEventListener("touchstart",()=>{
+  jump();
+});
 </script>
 
 </body>
