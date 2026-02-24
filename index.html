@@ -1,250 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Heart Run Game</title>
+<html>
+	<head>
+		<title>RAWRRRR!</title>
+		<link rel="stylesheet" href="style.css"> 
+	</head>
+	<body>
+		<!-- 
+			Boilerplate to start the basic layout. 
 
-<style>
-    body{
-        margin:0;
-        overflow:hidden;
-        background:#f7f7f7;
-        font-family:Arial, sans-serif;
-        display:flex;
-        justify-content:center;
-        align-items:center;
-        height:100vh;
-        transition: background 1s linear;
-    }
+			Making the canvas white will make our work space really obvious.
+		-->
+		<h1>Dinosaur Game!</h1>
+		<canvas id="game" height="200" width="800"></canvas>
+		<p class="controls">press space bar to start</p>
 
-    canvas{
-        background:#ffffff;
-        border:2px solid #222;
-        display:block;
-        transition: background 1s linear;
-    }
-
-    #startScreen{
-        position:absolute;
-        text-align:center;
-        font-size:22px;
-        color:#333;
-        cursor:pointer;
-    }
-</style>
-</head>
-<body>
-
-<div id="startScreen">Tap / Click To Start</div>
-<canvas id="gameCanvas" width="900" height="300"></canvas>
-
-<script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-const startScreen = document.getElementById("startScreen");
-
-let gameStarted = false;
-let gravity = 0.6;
-let speed = 6;
-let score = 0;
-let frame = 0;
-let nightProgress = 0;
-
-const heart = {
-    x: 80,
-    y: 0,
-    width: 40,
-    height: 40,
-    dy: 0,
-    jumpForce: 12,
-    grounded: false
-};
-
-let poopObstacles = [];
-let stars = [];
-
-function groundY(){
-    return canvas.height - 40;
-}
-
-function resetGame(){
-    poopObstacles = [];
-    stars = [];
-    score = 0;
-    speed = 6;
-    frame = 0;
-    nightProgress = 0;
-    heart.y = groundY() - heart.height;
-    document.body.style.background = "#f7f7f7";
-    canvas.style.background = "#ffffff";
-}
-
-function drawGround(){
-    ctx.fillStyle = "#444";
-    ctx.fillRect(0, groundY(), canvas.width, 3);
-}
-
-function drawHeart(){
-    ctx.font = "40px Arial";
-    ctx.fillText("❤️", heart.x, heart.y + heart.height);
-}
-
-function drawPoop(){
-    ctx.font = "30px Arial";
-    poopObstacles.forEach(p=>{
-        ctx.fillText("💩", p.x, p.y + p.height);
-    });
-}
-
-function drawStars(){
-    ctx.font = "28px Arial";
-    stars.forEach(s=>{
-        ctx.fillText("⭐", s.x, s.y + s.height);
-    });
-}
-
-function update(){
-
-    if(!gameStarted) return;
-
-    frame++;
-    score++;
-
-    // Increase speed gradually
-    if(score % 500 === 0){
-        speed += 0.5;
-    }
-
-    // Gradual night mode (never starts at night)
-    if(score > 1500){
-        nightProgress += 0.002;
-        if(nightProgress > 1) nightProgress = 1;
-
-        let dayColor = 247 - (200 * nightProgress);
-        document.body.style.background = `rgb(${dayColor},${dayColor},${dayColor})`;
-        canvas.style.background = `rgb(${255 - 200*nightProgress},${255 - 200*nightProgress},${255 - 200*nightProgress})`;
-    }
-
-    heart.dy += gravity;
-    heart.y += heart.dy;
-
-    if(heart.y + heart.height >= groundY()){
-        heart.y = groundY() - heart.height;
-        heart.dy = 0;
-        heart.grounded = true;
-    }
-
-    // Spawn poop obstacles
-    if(frame % 90 === 0){
-        poopObstacles.push({
-            x: canvas.width,
-            y: groundY() - 30,
-            width: 30,
-            height: 30
-        });
-    }
-
-    // Spawn flying stars (hard mode)
-    if(score > 2000 && frame % 150 === 0){
-        stars.push({
-            x: canvas.width,
-            y: groundY() - 100,
-            width: 30,
-            height: 30
-        });
-    }
-
-    poopObstacles.forEach(p=> p.x -= speed);
-    stars.forEach(s=> s.x -= speed);
-
-    poopObstacles = poopObstacles.filter(p=> p.x > -50);
-    stars = stars.filter(s=> s.x > -50);
-
-    checkCollision();
-}
-
-function checkCollision(){
-    poopObstacles.forEach(p=>{
-        if(
-            heart.x < p.x + p.width &&
-            heart.x + heart.width > p.x &&
-            heart.y < p.y + p.height &&
-            heart.y + heart.height > p.y
-        ){
-            gameOver();
-        }
-    });
-
-    stars.forEach(s=>{
-        if(
-            heart.x < s.x + s.width &&
-            heart.x + heart.width > s.x &&
-            heart.y < s.y + s.height &&
-            heart.y + heart.height > s.y
-        ){
-            gameOver();
-        }
-    });
-}
-
-function gameOver(){
-    gameStarted = false;
-    startScreen.innerText = "Game Over! Tap To Restart";
-    startScreen.style.display = "block";
-}
-
-function drawScore(){
-    ctx.fillStyle = "#000";
-    ctx.font = "20px Arial";
-    ctx.fillText("Score: " + score, canvas.width - 150, 30);
-}
-
-function gameLoop(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    update();
-    drawGround();
-    drawHeart();
-    drawPoop();
-    drawStars();
-    drawScore();
-
-    requestAnimationFrame(gameLoop);
-}
-
-window.addEventListener("keydown", e=>{
-    if(e.code === "Space" && heart.grounded){
-        heart.dy = -heart.jumpForce;
-        heart.grounded = false;
-    }
-});
-
-canvas.addEventListener("click", ()=>{
-    if(!gameStarted){
-        resetGame();
-        gameStarted = true;
-        startScreen.style.display = "none";
-    }else if(heart.grounded){
-        heart.dy = -heart.jumpForce;
-        heart.grounded = false;
-    }
-});
-
-canvas.addEventListener("touchstart", ()=>{
-    if(!gameStarted){
-        resetGame();
-        gameStarted = true;
-        startScreen.style.display = "none";
-    }else if(heart.grounded){
-        heart.dy = -heart.jumpForce;
-        heart.grounded = false;
-    }
-});
-
-resetGame();
-gameLoop();
-</script>
-
-</body>
+        <script src="js/helpers.js"></script>
+        <script src="js/objects/game-object.js"></script>
+        <script src="js/objects/cactus.js"></script>
+        <script src="js/objects/dinosaur.js"></script>
+        <script src="js/objects/background.js"></script>
+        <script src="js/objects/score.js"></script>
+        <script src="js/game.js"></script>
+        <script>
+        	new Game({
+        		el: document.getElementById("game")
+        	});
+        </script>
+	</body>
 </html>
