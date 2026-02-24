@@ -1,293 +1,239 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Runner Game</title>
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #f7f7f7;
-      font-family: monospace;
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chicken Run Game</title>
+
+<style>
+    body{
+        margin:0;
+        overflow:hidden;
+        background:#f7f7f7;
+        font-family:Arial, sans-serif;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        height:100vh;
     }
-    canvas {
-      display: block;
+
+    canvas{
+        background:#ffffff;
+        border:2px solid #222;
+        display:block;
     }
-    #ui {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      color: #555;
-      font-size: 22px;
+
+    #startScreen{
+        position:absolute;
+        text-align:center;
+        font-size:22px;
+        color:#333;
+        cursor:pointer;
     }
-    #gameOver {
-      display: none;
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      color: #fff;
-      font-size: 40px;
-    }
-    #score {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      font-size: 20px;
-      letter-spacing: 3px;
-    }
-  </style>
+</style>
 </head>
 <body>
-  <canvas id="game"></canvas>
-  <div id="score"></div>
-  <div id="ui">
-    <div style="font-size: 50px;">🦖</div>
-    Tap To Play
-  </div>
-  <div id="gameOver">
-    GAME OVER
-    <div style="font-size: 50px; margin-top: 20px;">🔄</div>
-  </div>
 
-  <script>
-    const canvas = document.getElementById("game");
-    const ctx = canvas.getContext("2d");
-    const ui = document.getElementById("ui");
-    const gameOverUI = document.getElementById("gameOver");
-    const scoreText = document.getElementById("score");
+<div id="startScreen">Tap / Click To Start</div>
+<canvas id="gameCanvas" width="900" height="300"></canvas>
 
-    function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-    resize();
-    window.addEventListener("resize", resize);
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const startScreen = document.getElementById("startScreen");
 
-    let player, obstacles, clouds, birds;
-    let gravity = 0.8;
-    let speed = 6;
-    let score = 0;
-    let high = localStorage.getItem("high") || 0;
-    let running = false;
-    let night = true; // Automatic night mode on
+let gameStarted = false;
+let gravity = 0.6;
+let speed = 6;
+let score = 0;
+let frame = 0;
+let nightMode = false;
 
-    class Player {
-      constructor() {
-        this.w = 40;
-        this.h = 40;
-        this.x = 80;
-        this.y = canvas.height - this.h - 60;
-        this.dy = 0;
-        this.jumpPower = 15;
-        this.grounded = true;
-      }
-      draw() {
-        ctx.fillStyle = "#444";
-        ctx.fillRect(this.x, this.y, this.w, this.h);
-      }
-      update() {
-        this.y += this.dy;
-        if (this.y + this.h < canvas.height - 60) {
-          this.dy += gravity;
-          this.grounded = false;
-        } else {
-          this.dy = 0;
-          this.grounded = true;
-          this.y = canvas.height - this.h - 60;
-        }
-        this.draw();
-      }
-      jump() {
-        if (this.grounded) {
-          this.dy = -this.jumpPower;
-        }
-      }
-    }
+const chicken = {
+    x: 80,
+    y: 0,
+    width: 40,
+    height: 40,
+    dy: 0,
+    jumpForce: 12,
+    grounded: false
+};
 
-    class Obstacle {
-      constructor() {
-        this.w = 20 + Math.random() * 20;
-        this.h = 40;
-        this.x = canvas.width;
-        this.y = canvas.height - this.h - 60;
-      }
-      draw() {
-        ctx.fillStyle = "#333";
-        ctx.fillRect(this.x, this.y, this.w, this.h);
-      }
-      update() {
-        this.x -= speed;
-        this.draw();
-      }
-    }
+let obstacles = [];
+let birds = [];
 
-    class Cloud {
-      constructor() {
-        this.x = canvas.width;
-        this.y = Math.random() * 200 + 20;
-        this.size = 30;
-      }
-      draw() {
-        ctx.fillStyle = "#ccc";
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      update() {
-        this.x -= 2;
-        this.draw();
-      }
-    }
+function resetGame(){
+    obstacles = [];
+    birds = [];
+    score = 0;
+    speed = 6;
+    frame = 0;
+    nightMode = false;
+    chicken.y = groundY() - chicken.height;
+}
 
-    class Bird {
-      constructor() {
-        this.x = canvas.width;
-        this.y = Math.random() * (canvas.height / 2);
-        this.size = 30;
-        this.dy = -2 + Math.random() * 4; // Random flight direction
-      }
-      draw() {
-        ctx.fillStyle = "#555";
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      update() {
-        this.x -= speed + 2; // Slightly faster than game speed
-        this.y += this.dy;
-        if (this.y < 20) this.dy = 2;
-        if (this.y > canvas.height / 2) this.dy = -2;
-        this.draw();
-      }
-    }
+function groundY(){
+    return canvas.height - 40;
+}
 
-    function init() {
-      player = new Player();
-      obstacles = [];
-      clouds = [];
-      birds = [];
-      speed = 6;
-      score = 0;
-    }
+function drawGround(){
+    ctx.fillStyle = nightMode ? "#888" : "#444";
+    ctx.fillRect(0, groundY(), canvas.width, 3);
+}
 
-    function spawnObstacle() {
-      obstacles.push(new Obstacle());
-    }
+function drawChicken(){
+    ctx.fillStyle = nightMode ? "#ffcc00" : "#ff9900";
+    ctx.fillRect(chicken.x, chicken.y, chicken.width, chicken.height);
+}
 
-    function spawnCloud() {
-      clouds.push(new Cloud());
-    }
-
-    function spawnBird() {
-      if (Math.random() < 0.5) {
-        birds.push(new Bird());
-      }
-    }
-
-    function collision(a, b) {
-      return (
-        a.x < b.x + b.w &&
-        a.x + a.w > b.x &&
-        a.y < b.y + b.h &&
-        a.y + a.h > b.y
-      );
-    }
-
-    let frame = 0;
-
-    function loop() {
-      if (!running) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Background: night mode if enabled
-      if (night) {
-        ctx.fillStyle = "#111";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      } else {
-        ctx.fillStyle = "#f7f7f7";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
-
-      // ground
-      ctx.fillStyle = night ? "#555" : "#888";
-      ctx.fillRect(0, canvas.height - 60, canvas.width, 2);
-
-      frame++;
-
-      if (frame % 90 === 0) spawnObstacle();
-      if (frame % 150 === 0) spawnCloud();
-      if (frame % 200 === 0) spawnBird();
-
-      clouds.forEach((c, i) => {
-        c.update();
-        if (c.x < -50) clouds.splice(i, 1);
-      });
-
-      birds.forEach((b, i) => {
-        b.update();
-        if (b.x < -50) birds.splice(i, 1);
-      });
-
-      obstacles.forEach((o, i) => {
-        o.update();
-        if (collision(player, o)) {
-          endGame();
-        }
-        if (o.x < -50) {
-          obstacles.splice(i, 1);
-          score++;
-          if (score % 10 === 0) speed += 0.5;
-        }
-      });
-
-      player.update();
-
-      // Score display
-      scoreText.innerText = "HI " + high + "  " + score;
-
-      // Update high score
-      if (score > high) {
-        high = score;
-        localStorage.setItem("high", high);
-      }
-
-      requestAnimationFrame(loop);
-    }
-
-    function startGame() {
-      ui.style.display = "none";
-      gameOverUI.style.display = "none";
-      running = true;
-      init();
-      loop();
-    }
-
-    function endGame() {
-      running = false;
-      gameOverUI.style.display = "flex";
-      if (navigator.vibrate) {
-        navigator.vibrate(300); // Vibrate for 300ms
-      }
-    }
-
-    document.addEventListener("click", () => {
-      if (!running) startGame();
-      else player.jump();
+function drawObstacles(){
+    ctx.fillStyle = nightMode ? "#aaa" : "#555";
+    obstacles.forEach(obs=>{
+        ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
     });
-    document.addEventListener("keydown", (e) => {
-      if (e.code === "Space") {
-        if (!running) startGame();
-        else player.jump();
-      }
+}
+
+function drawBirds(){
+    ctx.fillStyle = nightMode ? "#ddd" : "#222";
+    birds.forEach(b=>{
+        ctx.fillRect(b.x, b.y, b.width, b.height);
     });
-  </script>
+}
+
+function update(){
+    if(!gameStarted) return;
+
+    frame++;
+    score++;
+
+    if(score % 500 === 0){
+        speed += 0.5;
+    }
+
+    if(score > 2000){
+        nightMode = true;
+        document.body.style.background = "#111";
+        canvas.style.background = "#222";
+    }
+
+    chicken.dy += gravity;
+    chicken.y += chicken.dy;
+
+    if(chicken.y + chicken.height >= groundY()){
+        chicken.y = groundY() - chicken.height;
+        chicken.dy = 0;
+        chicken.grounded = true;
+    }
+
+    if(frame % 90 === 0){
+        obstacles.push({
+            x: canvas.width,
+            y: groundY() - 30,
+            width: 20,
+            height: 30
+        });
+    }
+
+    if(score > 1500 && frame % 150 === 0){
+        birds.push({
+            x: canvas.width,
+            y: groundY() - 80,
+            width: 30,
+            height: 20
+        });
+    }
+
+    obstacles.forEach(obs=> obs.x -= speed);
+    birds.forEach(b=> b.x -= speed);
+
+    obstacles = obstacles.filter(obs=> obs.x + obs.width > 0);
+    birds = birds.filter(b=> b.x + b.width > 0);
+
+    checkCollision();
+}
+
+function checkCollision(){
+    obstacles.forEach(obs=>{
+        if(
+            chicken.x < obs.x + obs.width &&
+            chicken.x + chicken.width > obs.x &&
+            chicken.y < obs.y + obs.height &&
+            chicken.y + chicken.height > obs.y
+        ){
+            gameOver();
+        }
+    });
+
+    birds.forEach(b=>{
+        if(
+            chicken.x < b.x + b.width &&
+            chicken.x + chicken.width > b.x &&
+            chicken.y < b.y + b.height &&
+            chicken.y + chicken.height > b.y
+        ){
+            gameOver();
+        }
+    });
+}
+
+function gameOver(){
+    gameStarted = false;
+    startScreen.innerText = "Game Over! Tap To Restart";
+    startScreen.style.display = "block";
+}
+
+function drawScore(){
+    ctx.fillStyle = nightMode ? "#fff" : "#000";
+    ctx.font = "20px Arial";
+    ctx.fillText("Score: " + score, canvas.width - 150, 30);
+}
+
+function gameLoop(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    update();
+    drawGround();
+    drawChicken();
+    drawObstacles();
+    drawBirds();
+    drawScore();
+
+    requestAnimationFrame(gameLoop);
+}
+
+window.addEventListener("keydown", e=>{
+    if(e.code === "Space" && chicken.grounded){
+        chicken.dy = -chicken.jumpForce;
+        chicken.grounded = false;
+    }
+});
+
+canvas.addEventListener("click", ()=>{
+    if(!gameStarted){
+        resetGame();
+        gameStarted = true;
+        startScreen.style.display = "none";
+    }else if(chicken.grounded){
+        chicken.dy = -chicken.jumpForce;
+        chicken.grounded = false;
+    }
+});
+
+canvas.addEventListener("touchstart", ()=>{
+    if(!gameStarted){
+        resetGame();
+        gameStarted = true;
+        startScreen.style.display = "none";
+    }else if(chicken.grounded){
+        chicken.dy = -chicken.jumpForce;
+        chicken.grounded = false;
+    }
+});
+
+resetGame();
+gameLoop();
+</script>
+
 </body>
 </html>
+
