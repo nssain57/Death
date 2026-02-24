@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chicken Run Game</title>
+<title>Heart Run Game</title>
 
 <style>
     body{
@@ -15,12 +15,14 @@
         justify-content:center;
         align-items:center;
         height:100vh;
+        transition: background 1s linear;
     }
 
     canvas{
         background:#ffffff;
         border:2px solid #222;
         display:block;
+        transition: background 1s linear;
     }
 
     #startScreen{
@@ -47,9 +49,9 @@ let gravity = 0.6;
 let speed = 6;
 let score = 0;
 let frame = 0;
-let nightMode = false;
+let nightProgress = 0;
 
-const chicken = {
+const heart = {
     x: 80,
     y: 0,
     width: 40,
@@ -59,117 +61,127 @@ const chicken = {
     grounded: false
 };
 
-let obstacles = [];
-let birds = [];
-
-function resetGame(){
-    obstacles = [];
-    birds = [];
-    score = 0;
-    speed = 6;
-    frame = 0;
-    nightMode = false;
-    chicken.y = groundY() - chicken.height;
-}
+let poopObstacles = [];
+let stars = [];
 
 function groundY(){
     return canvas.height - 40;
 }
 
+function resetGame(){
+    poopObstacles = [];
+    stars = [];
+    score = 0;
+    speed = 6;
+    frame = 0;
+    nightProgress = 0;
+    heart.y = groundY() - heart.height;
+    document.body.style.background = "#f7f7f7";
+    canvas.style.background = "#ffffff";
+}
+
 function drawGround(){
-    ctx.fillStyle = nightMode ? "#888" : "#444";
+    ctx.fillStyle = "#444";
     ctx.fillRect(0, groundY(), canvas.width, 3);
 }
 
-function drawChicken(){
-    ctx.fillStyle = nightMode ? "#ffcc00" : "#ff9900";
-    ctx.fillRect(chicken.x, chicken.y, chicken.width, chicken.height);
+function drawHeart(){
+    ctx.font = "40px Arial";
+    ctx.fillText("❤️", heart.x, heart.y + heart.height);
 }
 
-function drawObstacles(){
-    ctx.fillStyle = nightMode ? "#aaa" : "#555";
-    obstacles.forEach(obs=>{
-        ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+function drawPoop(){
+    ctx.font = "30px Arial";
+    poopObstacles.forEach(p=>{
+        ctx.fillText("💩", p.x, p.y + p.height);
     });
 }
 
-function drawBirds(){
-    ctx.fillStyle = nightMode ? "#ddd" : "#222";
-    birds.forEach(b=>{
-        ctx.fillRect(b.x, b.y, b.width, b.height);
+function drawStars(){
+    ctx.font = "28px Arial";
+    stars.forEach(s=>{
+        ctx.fillText("⭐", s.x, s.y + s.height);
     });
 }
 
 function update(){
+
     if(!gameStarted) return;
 
     frame++;
     score++;
 
+    // Increase speed gradually
     if(score % 500 === 0){
         speed += 0.5;
     }
 
-    if(score > 2000){
-        nightMode = true;
-        document.body.style.background = "#111";
-        canvas.style.background = "#222";
+    // Gradual night mode (never starts at night)
+    if(score > 1500){
+        nightProgress += 0.002;
+        if(nightProgress > 1) nightProgress = 1;
+
+        let dayColor = 247 - (200 * nightProgress);
+        document.body.style.background = `rgb(${dayColor},${dayColor},${dayColor})`;
+        canvas.style.background = `rgb(${255 - 200*nightProgress},${255 - 200*nightProgress},${255 - 200*nightProgress})`;
     }
 
-    chicken.dy += gravity;
-    chicken.y += chicken.dy;
+    heart.dy += gravity;
+    heart.y += heart.dy;
 
-    if(chicken.y + chicken.height >= groundY()){
-        chicken.y = groundY() - chicken.height;
-        chicken.dy = 0;
-        chicken.grounded = true;
+    if(heart.y + heart.height >= groundY()){
+        heart.y = groundY() - heart.height;
+        heart.dy = 0;
+        heart.grounded = true;
     }
 
+    // Spawn poop obstacles
     if(frame % 90 === 0){
-        obstacles.push({
+        poopObstacles.push({
             x: canvas.width,
             y: groundY() - 30,
-            width: 20,
+            width: 30,
             height: 30
         });
     }
 
-    if(score > 1500 && frame % 150 === 0){
-        birds.push({
+    // Spawn flying stars (hard mode)
+    if(score > 2000 && frame % 150 === 0){
+        stars.push({
             x: canvas.width,
-            y: groundY() - 80,
+            y: groundY() - 100,
             width: 30,
-            height: 20
+            height: 30
         });
     }
 
-    obstacles.forEach(obs=> obs.x -= speed);
-    birds.forEach(b=> b.x -= speed);
+    poopObstacles.forEach(p=> p.x -= speed);
+    stars.forEach(s=> s.x -= speed);
 
-    obstacles = obstacles.filter(obs=> obs.x + obs.width > 0);
-    birds = birds.filter(b=> b.x + b.width > 0);
+    poopObstacles = poopObstacles.filter(p=> p.x > -50);
+    stars = stars.filter(s=> s.x > -50);
 
     checkCollision();
 }
 
 function checkCollision(){
-    obstacles.forEach(obs=>{
+    poopObstacles.forEach(p=>{
         if(
-            chicken.x < obs.x + obs.width &&
-            chicken.x + chicken.width > obs.x &&
-            chicken.y < obs.y + obs.height &&
-            chicken.y + chicken.height > obs.y
+            heart.x < p.x + p.width &&
+            heart.x + heart.width > p.x &&
+            heart.y < p.y + p.height &&
+            heart.y + heart.height > p.y
         ){
             gameOver();
         }
     });
 
-    birds.forEach(b=>{
+    stars.forEach(s=>{
         if(
-            chicken.x < b.x + b.width &&
-            chicken.x + chicken.width > b.x &&
-            chicken.y < b.y + b.height &&
-            chicken.y + chicken.height > b.y
+            heart.x < s.x + s.width &&
+            heart.x + heart.width > s.x &&
+            heart.y < s.y + s.height &&
+            heart.y + heart.height > s.y
         ){
             gameOver();
         }
@@ -183,7 +195,7 @@ function gameOver(){
 }
 
 function drawScore(){
-    ctx.fillStyle = nightMode ? "#fff" : "#000";
+    ctx.fillStyle = "#000";
     ctx.font = "20px Arial";
     ctx.fillText("Score: " + score, canvas.width - 150, 30);
 }
@@ -193,18 +205,18 @@ function gameLoop(){
 
     update();
     drawGround();
-    drawChicken();
-    drawObstacles();
-    drawBirds();
+    drawHeart();
+    drawPoop();
+    drawStars();
     drawScore();
 
     requestAnimationFrame(gameLoop);
 }
 
 window.addEventListener("keydown", e=>{
-    if(e.code === "Space" && chicken.grounded){
-        chicken.dy = -chicken.jumpForce;
-        chicken.grounded = false;
+    if(e.code === "Space" && heart.grounded){
+        heart.dy = -heart.jumpForce;
+        heart.grounded = false;
     }
 });
 
@@ -213,9 +225,9 @@ canvas.addEventListener("click", ()=>{
         resetGame();
         gameStarted = true;
         startScreen.style.display = "none";
-    }else if(chicken.grounded){
-        chicken.dy = -chicken.jumpForce;
-        chicken.grounded = false;
+    }else if(heart.grounded){
+        heart.dy = -heart.jumpForce;
+        heart.grounded = false;
     }
 });
 
@@ -224,9 +236,9 @@ canvas.addEventListener("touchstart", ()=>{
         resetGame();
         gameStarted = true;
         startScreen.style.display = "none";
-    }else if(chicken.grounded){
-        chicken.dy = -chicken.jumpForce;
-        chicken.grounded = false;
+    }else if(heart.grounded){
+        heart.dy = -heart.jumpForce;
+        heart.grounded = false;
     }
 });
 
@@ -236,4 +248,3 @@ gameLoop();
 
 </body>
 </html>
-
