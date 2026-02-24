@@ -10,21 +10,14 @@ body{
   margin:0;
   overflow:hidden;
   background:#f7f7f7;
-  font-family:Arial;
+  font-family:monospace;
 }
 
 canvas{
   display:block;
 }
 
-#scoreBoard{
-  position:absolute;
-  top:20px;
-  right:20px;
-  font-size:18px;
-}
-
-#startScreen, #gameOverScreen{
+#ui{
   position:absolute;
   width:100%;
   height:100%;
@@ -32,198 +25,223 @@ canvas{
   justify-content:center;
   align-items:center;
   flex-direction:column;
-  background:rgba(0,0,0,0.6);
-  color:white;
-  font-size:24px;
+  color:#555;
+  font-size:22px;
 }
 
-button{
-  padding:10px 20px;
-  font-size:18px;
-  margin-top:15px;
-  cursor:pointer;
+#gameOver{
+  display:none;
+  position:absolute;
+  width:100%;
+  height:100%;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  color:#000;
+  font-size:40px;
+}
+
+#score{
+  position:absolute;
+  top:20px;
+  right:20px;
+  font-size:20px;
+  letter-spacing:3px;
 }
 </style>
 </head>
 <body>
 
 <canvas id="game"></canvas>
-<div id="scoreBoard">Score: 0 | High: 0</div>
+<div id="score"></div>
 
-<div id="startScreen">
-  Click To Start
+<div id="ui">
+  <div style="font-size:50px;">🦖</div>
+  Tap To Play
 </div>
 
-<div id="gameOverScreen" style="display:none;">
-  <div id="finalScore"></div>
-  <button onclick="restartGame()">Restart</button>
+<div id="gameOver">
+  GAME OVER
+  <div style="font-size:50px;margin-top:20px;">🔄</div>
 </div>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-const scoreBoard = document.getElementById("scoreBoard");
-const startScreen = document.getElementById("startScreen");
-const gameOverScreen = document.getElementById("gameOverScreen");
-const finalScore = document.getElementById("finalScore");
+const ui = document.getElementById("ui");
+const gameOverUI = document.getElementById("gameOver");
+const scoreText = document.getElementById("score");
 
 function resize(){
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 }
 resize();
-window.addEventListener("resize", resize);
+window.addEventListener("resize",resize);
 
+let player, obstacles, clouds;
 let gravity = 0.8;
-let gameSpeed = 6;
+let speed = 6;
 let score = 0;
-let highScore = localStorage.getItem("highScore") || 0;
-let obstacles = [];
-let frame = 0;
-let gameRunning = false;
+let high = localStorage.getItem("high") || 0;
+let running = false;
 
 class Player{
   constructor(){
-    this.width = 40;
-    this.height = 40;
-    this.x = 80;
-    this.y = canvas.height - this.height - 50;
-    this.dy = 0;
-    this.jumpForce = 15;
-    this.grounded = true;
+    this.w=40;
+    this.h=40;
+    this.x=80;
+    this.y=canvas.height-this.h-60;
+    this.dy=0;
+    this.jumpPower=15;
+    this.grounded=true;
   }
-
   draw(){
-    ctx.fillStyle = "#000";
-    ctx.fillRect(this.x,this.y,this.width,this.height);
+    ctx.fillStyle="#444";
+    ctx.fillRect(this.x,this.y,this.w,this.h);
   }
-
   update(){
-    this.y += this.dy;
-
-    if(this.y + this.height < canvas.height - 50){
-      this.dy += gravity;
-      this.grounded = false;
-    } else {
-      this.dy = 0;
-      this.grounded = true;
-      this.y = canvas.height - this.height - 50;
+    this.y+=this.dy;
+    if(this.y+this.h<canvas.height-60){
+      this.dy+=gravity;
+      this.grounded=false;
+    }else{
+      this.dy=0;
+      this.grounded=true;
+      this.y=canvas.height-this.h-60;
     }
     this.draw();
   }
-
   jump(){
     if(this.grounded){
-      this.dy = -this.jumpForce;
+      this.dy=-this.jumpPower;
     }
   }
 }
 
 class Obstacle{
   constructor(){
-    this.width = 20 + Math.random()*20;
-    this.height = 40;
-    this.x = canvas.width;
-    this.y = canvas.height - this.height - 50;
+    this.w=20+Math.random()*20;
+    this.h=40;
+    this.x=canvas.width;
+    this.y=canvas.height-this.h-60;
   }
-
   draw(){
-    ctx.fillStyle = "#222";
-    ctx.fillRect(this.x,this.y,this.width,this.height);
+    ctx.fillStyle="#333";
+    ctx.fillRect(this.x,this.y,this.w,this.h);
   }
-
   update(){
-    this.x -= gameSpeed;
+    this.x-=speed;
     this.draw();
   }
 }
 
-let player = new Player();
+class Cloud{
+  constructor(){
+    this.x=canvas.width;
+    this.y=Math.random()*200+20;
+    this.size=30;
+  }
+  draw(){
+    ctx.fillStyle="#ccc";
+    ctx.beginPath();
+    ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
+    ctx.fill();
+  }
+  update(){
+    this.x-=2;
+    this.draw();
+  }
+}
+
+function init(){
+  player=new Player();
+  obstacles=[];
+  clouds=[];
+  speed=6;
+  score=0;
+}
 
 function spawnObstacle(){
   obstacles.push(new Obstacle());
 }
 
-function detectCollision(a,b){
-  return a.x < b.x + b.width &&
-         a.x + a.width > b.x &&
-         a.y < b.y + b.height &&
-         a.y + a.height > b.y;
+function spawnCloud(){
+  clouds.push(new Cloud());
 }
 
-function gameLoop(){
-  if(!gameRunning) return;
+function collision(a,b){
+  return a.x<b.x+b.w &&
+         a.x+a.w>b.x &&
+         a.y<b.y+b.h &&
+         a.y+a.h>b.y;
+}
 
+let frame=0;
+
+function loop(){
+  if(!running) return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // ground
+  ctx.fillStyle="#888";
+  ctx.fillRect(0,canvas.height-60,canvas.width,2);
+
   frame++;
 
-  if(frame % 90 === 0){
-    spawnObstacle();
-  }
+  if(frame%90===0) spawnObstacle();
+  if(frame%150===0) spawnCloud();
 
-  obstacles.forEach((obs,i)=>{
-    obs.update();
+  clouds.forEach((c,i)=>{
+    c.update();
+    if(c.x<-50) clouds.splice(i,1);
+  });
 
-    if(detectCollision(player,obs)){
+  obstacles.forEach((o,i)=>{
+    o.update();
+    if(collision(player,o)){
       endGame();
     }
-
-    if(obs.x < -50){
+    if(o.x<-50){
       obstacles.splice(i,1);
       score++;
-      if(score % 10 === 0){
-        gameSpeed += 0.5;
-      }
+      if(score%10===0) speed+=0.5;
     }
   });
 
   player.update();
 
-  scoreBoard.innerText = "Score: "+score+" | High: "+highScore;
+  scoreText.innerText="HI "+high+"  "+score;
 
-  if(score > highScore){
-    highScore = score;
-    localStorage.setItem("highScore",highScore);
+  if(score>high){
+    high=score;
+    localStorage.setItem("high",high);
   }
 
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(loop);
 }
 
 function startGame(){
-  startScreen.style.display = "none";
-  gameRunning = true;
-  gameLoop();
+  ui.style.display="none";
+  gameOverUI.style.display="none";
+  running=true;
+  init();
+  loop();
 }
 
 function endGame(){
-  gameRunning = false;
-  finalScore.innerText = "Game Over! Score: " + score;
-  gameOverScreen.style.display = "flex";
+  running=false;
+  gameOverUI.style.display="flex";
 }
 
-function restartGame(){
-  obstacles = [];
-  score = 0;
-  gameSpeed = 6;
-  frame = 0;
-  gameOverScreen.style.display = "none";
-  gameRunning = true;
-  gameLoop();
-}
-
-document.addEventListener("keydown", ()=> player.jump());
-document.addEventListener("click", ()=>{
-  if(!gameRunning){
-    startGame();
-  } else {
-    player.jump();
-  }
+document.addEventListener("click",()=>{
+  if(!running) startGame();
+  else player.jump();
 });
-document.addEventListener("touchstart", ()=>{
-  if(!gameRunning){
-    startGame();
-  } else {
-    player.jump();
+document.addEventListener("keydown",e=>{
+  if(e.code==="Space"){
+    if(!running) startGame();
+    else player.jump();
   }
 });
 </script>
