@@ -1,115 +1,161 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Car Game</title>
+  <title>Real Car Game</title>
   <style>
     body {
-      text-align: center;
-      background: #111;
-      color: white;
+      margin: 0;
+      overflow: hidden;
+      background: black;
     }
     canvas {
-      background: #333;
       display: block;
       margin: auto;
+      background: #222;
+    }
+    .controls {
+      position: fixed;
+      bottom: 20px;
+      width: 100%;
+      text-align: center;
     }
     button {
-      padding: 10px 20px;
+      padding: 15px 25px;
+      font-size: 20px;
       margin: 10px;
-      font-size: 18px;
     }
   </style>
 </head>
 <body>
 
-<h2>Car Game 🚗</h2>
-
 <canvas id="gameCanvas" width="300" height="500"></canvas>
 
-<br>
-<button onclick="moveLeft()">⬅ Left</button>
-<button onclick="moveRight()">Right ➡</button>
+<div class="controls">
+  <button id="leftBtn">⬅</button>
+  <button id="rightBtn">➡</button>
+</div>
 
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// ===== Images =====
+const carImg = new Image();
+carImg.src = "https://i.imgur.com/7Qp6Y6F.png"; // car image
+
+const enemyImg = new Image();
+enemyImg.src = "https://i.imgur.com/Z6X5K0X.png"; // other vehicles
+
+// ===== Player =====
 let car = {
-  x: 130,
-  y: 400,
-  width: 40,
-  height: 80
+  x: 120,
+  y: 380,
+  width: 60,
+  height: 100,
+  speed: 5
 };
 
-let obstacles = [];
+// ===== Controls =====
+let leftPressed = false;
+let rightPressed = false;
 
-function drawCar() {
-  ctx.fillStyle = "red";
-  ctx.fillRect(car.x, car.y, car.width, car.height);
+// Hold buttons
+document.getElementById("leftBtn").onmousedown = () => leftPressed = true;
+document.getElementById("leftBtn").onmouseup = () => leftPressed = false;
+document.getElementById("rightBtn").onmousedown = () => rightPressed = true;
+document.getElementById("rightBtn").onmouseup = () => rightPressed = false;
+
+// Mobile support
+document.getElementById("leftBtn").ontouchstart = () => leftPressed = true;
+document.getElementById("leftBtn").ontouchend = () => leftPressed = false;
+document.getElementById("rightBtn").ontouchstart = () => rightPressed = true;
+document.getElementById("rightBtn").ontouchend = () => rightPressed = false;
+
+// ===== Obstacles =====
+let enemies = [];
+let speed = 3;
+
+function spawnEnemy() {
+  let x = Math.random() * (canvas.width - 60);
+  enemies.push({ x: x, y: -100, width: 60, height: 100 });
 }
+setInterval(spawnEnemy, 1200);
+
+// ===== Road Animation =====
+let roadY = 0;
 
 function drawRoad() {
-  ctx.fillStyle = "#555";
-  ctx.fillRect(0, 0, 300, 500);
+  ctx.fillStyle = "#444";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   ctx.strokeStyle = "white";
   ctx.setLineDash([20, 15]);
-  ctx.beginPath();
-  ctx.moveTo(150, 0);
-  ctx.lineTo(150, 500);
-  ctx.stroke();
+  
+  for (let i = -500; i < 500; i += 40) {
+    ctx.beginPath();
+    ctx.moveTo(150, i + roadY);
+    ctx.lineTo(150, i + 20 + roadY);
+    ctx.stroke();
+  }
+
+  roadY += speed;
+  if (roadY > 40) roadY = 0;
 }
 
-function createObstacle() {
-  let width = 40;
-  let x = Math.random() * (300 - width);
-  obstacles.push({ x: x, y: -80, width: width, height: 80 });
+// ===== Draw =====
+function drawCar() {
+  ctx.drawImage(carImg, car.x, car.y, car.width, car.height);
 }
 
-function drawObstacles() {
-  ctx.fillStyle = "yellow";
-  obstacles.forEach(o => {
-    ctx.fillRect(o.x, o.y, o.width, o.height);
-    o.y += 5;
+function drawEnemies() {
+  enemies.forEach((e, i) => {
+    e.y += speed;
+    ctx.drawImage(enemyImg, e.x, e.y, e.width, e.height);
+
+    // remove off screen
+    if (e.y > canvas.height) enemies.splice(i, 1);
   });
 }
 
-function detectCollision() {
-  for (let o of obstacles) {
+// ===== Collision =====
+function checkCollision() {
+  for (let e of enemies) {
     if (
-      car.x < o.x + o.width &&
-      car.x + car.width > o.x &&
-      car.y < o.y + o.height &&
-      car.y + car.height > o.y
+      car.x < e.x + e.width &&
+      car.x + car.width > e.x &&
+      car.y < e.y + e.height &&
+      car.y + car.height > e.y
     ) {
-      alert("Game Over!");
-      document.location.reload();
+      alert("💥 Game Over!");
+      location.reload();
     }
   }
 }
 
-function moveLeft() {
-  if (car.x > 0) car.x -= 30;
-}
-
-function moveRight() {
-  if (car.x < 260) car.x += 30;
-}
-
-setInterval(createObstacle, 1500);
-
+// ===== Game Loop =====
 function gameLoop() {
-  ctx.clearRect(0, 0, 300, 500);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   drawRoad();
+
+  // movement
+  if (leftPressed && car.x > 0) car.x -= car.speed;
+  if (rightPressed && car.x < canvas.width - car.width) car.x += car.speed;
+
   drawCar();
-  drawObstacles();
-  detectCollision();
+  drawEnemies();
+  checkCollision();
+
+  // speed increase
+  speed += 0.002;
 
   requestAnimationFrame(gameLoop);
 }
 
-gameLoop();
+// Start
+carImg.onload = () => {
+  gameLoop();
+};
 </script>
 
 </body>
