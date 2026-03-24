@@ -1,162 +1,136 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Real Car Game</title>
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: black;
-    }
-    canvas {
-      display: block;
-      margin: auto;
-      background: #222;
-    }
-    .controls {
-      position: fixed;
-      bottom: 20px;
-      width: 100%;
-      text-align: center;
-    }
-    button {
-      padding: 15px 25px;
-      font-size: 20px;
-      margin: 10px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bike Game Starter</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #87CEEB; /* Sky blue */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            background-color: #fff;
+            border: 4px solid #333;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+        p {
+            color: #333;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
 
-<canvas id="gameCanvas" width="300" height="500"></canvas>
+    <h2>Mini Bike Physics Concept</h2>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <p>Aage peeche jaane ke liye ⬅️ aur ➡️ Arrow keys dabao!</p>
 
-<div class="controls">
-  <button id="leftBtn">⬅</button>
-  <button id="rightBtn">➡</button>
-</div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
 
-<script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
+        // Simple Bike Object
+        const bike = {
+            x: 100,
+            y: 50,
+            width: 50,
+            height: 25,
+            dx: 0,
+            dy: 0,
+            gravity: 0.6,
+            friction: 0.95,
+            grounded: false
+        };
 
-// ===== Images =====
-const carImg = new Image();
-carImg.src = "https://i.imgur.com/7Qp6Y6F.png"; // car image
+        // Track/Zameen
+        const groundY = 320;
 
-const enemyImg = new Image();
-enemyImg.src = "https://i.imgur.com/Z6X5K0X.png"; // other vehicles
+        // Keys tracking
+        const keys = { ArrowRight: false, ArrowLeft: false };
 
-// ===== Player =====
-let car = {
-  x: 120,
-  y: 380,
-  width: 60,
-  height: 100,
-  speed: 5
-};
+        window.addEventListener('keydown', (e) => {
+            if(keys.hasOwnProperty(e.key)) keys[e.key] = true;
+        });
 
-// ===== Controls =====
-let leftPressed = false;
-let rightPressed = false;
+        window.addEventListener('keyup', (e) => {
+            if(keys.hasOwnProperty(e.key)) keys[e.key] = false;
+        });
 
-// Hold buttons
-document.getElementById("leftBtn").onmousedown = () => leftPressed = true;
-document.getElementById("leftBtn").onmouseup = () => leftPressed = false;
-document.getElementById("rightBtn").onmousedown = () => rightPressed = true;
-document.getElementById("rightBtn").onmouseup = () => rightPressed = false;
+        function update() {
+            // Gravity lagao
+            bike.dy += bike.gravity;
+            bike.y += bike.dy;
 
-// Mobile support
-document.getElementById("leftBtn").ontouchstart = () => leftPressed = true;
-document.getElementById("leftBtn").ontouchend = () => leftPressed = false;
-document.getElementById("rightBtn").ontouchstart = () => rightPressed = true;
-document.getElementById("rightBtn").ontouchend = () => rightPressed = false;
+            // Zameen se takrana
+            if (bike.y + bike.height >= groundY) {
+                bike.y = groundY - bike.height;
+                bike.dy = 0;
+                bike.grounded = true;
+            } else {
+                bike.grounded = false;
+            }
 
-// ===== Obstacles =====
-let enemies = [];
-let speed = 3;
+            // Aage/Peeche badhna
+            if (keys.ArrowRight && bike.grounded) {
+                bike.dx += 1;
+            }
+            if (keys.ArrowLeft && bike.grounded) {
+                bike.dx -= 1;
+            }
 
-function spawnEnemy() {
-  let x = Math.random() * (canvas.width - 60);
-  enemies.push({ x: x, y: -100, width: 60, height: 100 });
-}
-setInterval(spawnEnemy, 1200);
+            // Friction (bike ko dheere karne ke liye)
+            bike.dx *= bike.friction;
+            bike.x += bike.dx;
 
-// ===== Road Animation =====
-let roadY = 0;
+            // Screen ke bahar jane pe wapas lana
+            if(bike.x > canvas.width) bike.x = -bike.width;
+            if(bike.x < -bike.width) bike.x = canvas.width;
+        }
 
-function drawRoad() {
-  ctx.fillStyle = "#444";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.strokeStyle = "white";
-  ctx.setLineDash([20, 15]);
-  
-  for (let i = -500; i < 500; i += 40) {
-    ctx.beginPath();
-    ctx.moveTo(150, i + roadY);
-    ctx.lineTo(150, i + 20 + roadY);
-    ctx.stroke();
-  }
+            // Zameen draw karna
+            ctx.fillStyle = '#E2C27D'; // Sand color
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+            
+            // Track ki laal line draw karna
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(canvas.width, groundY);
+            ctx.stroke();
 
-  roadY += speed;
-  if (roadY > 40) roadY = 0;
-}
+            // Bike (ek box ki tarah) draw karna
+            ctx.fillStyle = '#3498db';
+            ctx.fillRect(bike.x, bike.y, bike.width, bike.height);
+            
+            // Pahiye (Wheels) draw karna
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.arc(bike.x + 10, bike.y + bike.height, 10, 0, Math.PI * 2);
+            ctx.arc(bike.x + bike.width - 10, bike.y + bike.height, 10, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
-// ===== Draw =====
-function drawCar() {
-  ctx.drawImage(carImg, car.x, car.y, car.width, car.height);
-}
+        // Game Loop
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
 
-function drawEnemies() {
-  enemies.forEach((e, i) => {
-    e.y += speed;
-    ctx.drawImage(enemyImg, e.x, e.y, e.width, e.height);
-
-    // remove off screen
-    if (e.y > canvas.height) enemies.splice(i, 1);
-  });
-}
-
-// ===== Collision =====
-function checkCollision() {
-  for (let e of enemies) {
-    if (
-      car.x < e.x + e.width &&
-      car.x + car.width > e.x &&
-      car.y < e.y + e.height &&
-      car.y + car.height > e.y
-    ) {
-      alert("💥 Game Over!");
-      location.reload();
-    }
-  }
-}
-
-// ===== Game Loop =====
-function gameLoop() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  drawRoad();
-
-  // movement
-  if (leftPressed && car.x > 0) car.x -= car.speed;
-  if (rightPressed && car.x < canvas.width - car.width) car.x += car.speed;
-
-  drawCar();
-  drawEnemies();
-  checkCollision();
-
-  // speed increase
-  speed += 0.002;
-
-  requestAnimationFrame(gameLoop);
-}
-
-// Start
-carImg.onload = () => {
-  gameLoop();
-};
-</script>
-
+        // Game start
+        loop();
+    </script>
 </body>
 </html>
