@@ -2,47 +2,79 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Game Starter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mini Bike Touch Controls</title>
     <style>
         body {
             margin: 0;
-            background-color: #87CEEB; /* Sky blue */
+            background-color: #87CEEB;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
             font-family: Arial, sans-serif;
+            overflow: hidden; /* Screen scroll na ho */
         }
         canvas {
             background-color: #fff;
             border: 4px solid #333;
             border-radius: 10px;
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            max-width: 95%; /* Tablet screen par fit aane ke liye */
         }
-        p {
-            color: #333;
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 40px;
+            width: 100%;
+            justify-content: center;
+        }
+        .btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 24px;
             font-weight: bold;
+            border-radius: 15px;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+            user-select: none;
+            touch-action: manipulation; /* Touch delay hatane ke liye */
+        }
+        .btn:active {
+            background-color: #c0392b;
+            transform: translateY(4px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .btn-race {
+            background-color: #2ecc71;
+        }
+        .btn-race:active {
+            background-color: #27ae60;
         }
     </style>
 </head>
 <body>
 
-    <h2>Mini Bike Physics Concept</h2>
+    <h2 style="color: #333;">Bike Physics - Touch Controls</h2>
     <canvas id="gameCanvas" width="800" height="400"></canvas>
-    <p>Aage peeche jaane ke liye ⬅️ aur ➡️ Arrow keys dabao!</p>
+    
+    <div class="controls">
+        <button class="btn" id="btnLeft">Peeche</button>
+        <button class="btn btn-race" id="btnRight">Race (Aage)</button>
+    </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Simple Bike Object
+        // Bike Object
         const bike = {
             x: 100,
             y: 50,
-            width: 50,
-            height: 25,
+            width: 60,
+            height: 30,
             dx: 0,
             dy: 0,
             gravity: 0.6,
@@ -50,26 +82,43 @@
             grounded: false
         };
 
-        // Track/Zameen
         const groundY = 320;
 
-        // Keys tracking
-        const keys = { ArrowRight: false, ArrowLeft: false };
+        // Button States
+        const keys = { right: false, left: false };
 
-        window.addEventListener('keydown', (e) => {
-            if(keys.hasOwnProperty(e.key)) keys[e.key] = true;
-        });
+        // Button Elements
+        const btnLeft = document.getElementById('btnLeft');
+        const btnRight = document.getElementById('btnRight');
 
-        window.addEventListener('keyup', (e) => {
-            if(keys.hasOwnProperty(e.key)) keys[e.key] = false;
-        });
+        // Functions for buttons (Touch + Mouse support)
+        const startRight = (e) => { e.preventDefault(); keys.right = true; };
+        const stopRight = (e) => { e.preventDefault(); keys.right = false; };
+        
+        const startLeft = (e) => { e.preventDefault(); keys.left = true; };
+        const stopLeft = (e) => { e.preventDefault(); keys.left = false; };
+
+        // Right Button Events
+        btnRight.addEventListener('touchstart', startRight);
+        btnRight.addEventListener('touchend', stopRight);
+        btnRight.addEventListener('mousedown', startRight);
+        btnRight.addEventListener('mouseup', stopRight);
+        btnRight.addEventListener('mouseleave', stopRight);
+
+        // Left Button Events
+        btnLeft.addEventListener('touchstart', startLeft);
+        btnLeft.addEventListener('touchend', stopLeft);
+        btnLeft.addEventListener('mousedown', startLeft);
+        btnLeft.addEventListener('mouseup', stopLeft);
+        btnLeft.addEventListener('mouseleave', stopLeft);
+
 
         function update() {
-            // Gravity lagao
+            // Gravity
             bike.dy += bike.gravity;
             bike.y += bike.dy;
 
-            // Zameen se takrana
+            // Ground Collision
             if (bike.y + bike.height >= groundY) {
                 bike.y = groundY - bike.height;
                 bike.dy = 0;
@@ -78,19 +127,23 @@
                 bike.grounded = false;
             }
 
-            // Aage/Peeche badhna
-            if (keys.ArrowRight && bike.grounded) {
-                bike.dx += 1;
+            // Movement logic
+            if (keys.right && bike.grounded) {
+                bike.dx += 0.8; // Race speed
             }
-            if (keys.ArrowLeft && bike.grounded) {
-                bike.dx -= 1;
+            if (keys.left && bike.grounded) {
+                bike.dx -= 0.8; // Back/Brake speed
             }
 
-            // Friction (bike ko dheere karne ke liye)
+            // Max speed limit
+            if(bike.dx > 12) bike.dx = 12;
+            if(bike.dx < -12) bike.dx = -12;
+
+            // Friction
             bike.dx *= bike.friction;
             bike.x += bike.dx;
 
-            // Screen ke bahar jane pe wapas lana
+            // Screen loop (ek side se bahar jaye toh dusri side se aaye)
             if(bike.x > canvas.width) bike.x = -bike.width;
             if(bike.x < -bike.width) bike.x = canvas.width;
         }
@@ -98,11 +151,11 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Zameen draw karna
-            ctx.fillStyle = '#E2C27D'; // Sand color
+            // Zameen
+            ctx.fillStyle = '#E2C27D'; 
             ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
             
-            // Track ki laal line draw karna
+            // Track ki laal line
             ctx.strokeStyle = 'red';
             ctx.lineWidth = 4;
             ctx.beginPath();
@@ -110,26 +163,31 @@
             ctx.lineTo(canvas.width, groundY);
             ctx.stroke();
 
-            // Bike (ek box ki tarah) draw karna
+            // Bike Body
             ctx.fillStyle = '#3498db';
             ctx.fillRect(bike.x, bike.y, bike.width, bike.height);
             
-            // Pahiye (Wheels) draw karna
-            ctx.fillStyle = '#333';
+            // Bike Wheels
+            ctx.fillStyle = '#111';
             ctx.beginPath();
-            ctx.arc(bike.x + 10, bike.y + bike.height, 10, 0, Math.PI * 2);
-            ctx.arc(bike.x + bike.width - 10, bike.y + bike.height, 10, 0, Math.PI * 2);
+            ctx.arc(bike.x + 15, bike.y + bike.height, 12, 0, Math.PI * 2);
+            ctx.arc(bike.x + bike.width - 15, bike.y + bike.height, 12, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Wheel Rims (safed dot)
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(bike.x + 15, bike.y + bike.height, 4, 0, Math.PI * 2);
+            ctx.arc(bike.x + bike.width - 15, bike.y + bike.height, 4, 0, Math.PI * 2);
             ctx.fill();
         }
 
-        // Game Loop
         function loop() {
             update();
             draw();
             requestAnimationFrame(loop);
         }
 
-        // Game start
         loop();
     </script>
 </body>
