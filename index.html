@@ -3,30 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Scrolling Bike Race</title>
+    <title>Premium Bike Race - 5 Levels</title>
     <style>
-        body { margin: 0; background-color: #87CEEB; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; overflow: hidden; user-select: none; }
-        #gameCanvas { background-color: #fff; border: 4px solid #333; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); max-width: 95%; max-height: 80vh; }
-        .controls { position: fixed; bottom: 20px; display: flex; gap: 40px; width: 100%; justify-content: center; padding: 0 10px; box-sizing: border-box; }
-        .btn { background-color: #e74c3c; color: white; border: none; padding: 25px 35px; font-size: 26px; font-weight: bold; border-radius: 20px; box-shadow: 0 5px 10px rgba(0,0,0,0.3); touch-action: manipulation; flex-grow: 1; text-align: center; }
-        .btn:active { background-color: #c0392b; transform: translateY(4px); box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        .btn-race { background-color: #2ecc71; }
-        .btn-race:active { background-color: #27ae60; }
-        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: white; display: none; flex-direction: column; justify-content: center; align-items: center; font-size: 40px; font-weight: bold; z-index: 10; }
-        #overlay button { margin-top: 20px; padding: 15px 30px; font-size: 24px; border-radius: 10px; background: #3498db; color: white; border: none; cursor: pointer; }
+        body { margin: 0; background-color: #111; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; user-select: none; }
+        #gameCanvas { background-color: #87CEEB; border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); max-width: 100%; max-height: 80vh; border: 2px solid #555; }
+        .controls { position: fixed; bottom: 15px; display: flex; gap: 20px; width: 100%; justify-content: center; padding: 0 20px; box-sizing: border-box; z-index: 5; }
+        .btn { background: linear-gradient(to bottom, #e74c3c, #c0392b); color: white; border: none; padding: 20px 0; width: 45%; font-size: 22px; font-weight: 900; border-radius: 15px; box-shadow: 0 6px 0 #922b21, 0 10px 15px rgba(0,0,0,0.4); touch-action: manipulation; text-transform: uppercase; letter-spacing: 1px; }
+        .btn:active { transform: translateY(6px); box-shadow: 0 0px 0 #922b21, 0 4px 6px rgba(0,0,0,0.4); }
+        .btn-race { background: linear-gradient(to bottom, #2ecc71, #27ae60); box-shadow: 0 6px 0 #1e8449, 0 10px 15px rgba(0,0,0,0.4); }
+        .btn-race:active { box-shadow: 0 0px 0 #1e8449, 0 4px 6px rgba(0,0,0,0.4); }
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); color: #fff; display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(5px); }
+        #overlay h1 { font-size: 50px; margin: 0; text-align: center; text-shadow: 2px 2px 10px rgba(255,255,255,0.3); }
+        #overlay button { margin-top: 30px; padding: 15px 40px; font-size: 24px; font-weight: bold; border-radius: 50px; background: linear-gradient(to right, #3498db, #2980b9); color: white; border: none; cursor: pointer; box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4); }
     </style>
 </head>
 <body>
 
-    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <canvas id="gameCanvas" width="900" height="450"></canvas>
     
     <div class="controls">
-        <button class="btn" id="btnLeft">Peeche / Tilt Back</button>
-        <button class="btn btn-race" id="btnRight">Race / Tilt Fwd</button>
+        <button class="btn" id="btnLeft">Peeche / Tilt</button>
+        <button class="btn btn-race" id="btnRight">Race / Tilt</button>
     </div>
 
     <div id="overlay">
-        <div id="overlayText">Level Complete!</div>
+        <h1 id="overlayText">Level Complete!</h1>
         <button id="overlayButton" onclick="handleOverlay()">Next Level</button>
     </div>
 
@@ -40,22 +41,38 @@
         let currentLevel = 1;
         let isGameOver = false;
         let isLevelComplete = false;
-        let cameraX = 0; // CAMERA OFFSET
+        
+        let cameraX = 0; 
+        let targetCameraX = 0;
 
-        // Bike setup
         const bike = {
             x: 100, y: 150,
-            w: 50, h: 25,
+            w: 48, h: 22,
             dx: 0, dy: 0,
             angle: 0, angVel: 0, torque: 0,
-            gravity: 0.6, friction: 0.98,
-            grounded: false, wheelRadius: 12
+            gravity: 0.55, friction: 0.98, airFriction: 0.99,
+            grounded: false, wheelRadius: 13,
+            wheelRotation: 0
         };
 
-        // Lamba Track (Road)
+        let particles = [];
+
+        // 5 LEVELS ADD KAR DIYE GAYE HAIN!
         const tracks = [
-            [ {x: -200, y: 300}, {x: 200, y: 300}, {x: 400, y: 250}, {x: 600, y: 300}, {x: 800, y: 200}, {x: 1000, y: 300}, {x: 1300, y: 300}, {x: 1500, y: 150}, {x: 1800, y: 350}, {x: 2200, y: 350}, {x: 2500, y: 300}, {x: 3000, y: 300} ],
-            [ {x: -200, y: 300}, {x: 300, y: 300}, {x: 500, y: 150}, {x: 700, y: 350}, {x: 1000, y: 350}, {x: 1200, y: 200}, {x: 1400, y: 350}, {x: 1800, y: 100}, {x: 2000, y: 350}, {x: 2500, y: 350}, {x: 3000, y: 350} ]
+            // Level 1: Easy - Naye players ke seekhne ke liye
+            [ {x: -200, y: 350}, {x: 400, y: 350}, {x: 600, y: 280}, {x: 800, y: 350}, {x: 1100, y: 350}, {x: 1300, y: 200}, {x: 1500, y: 380}, {x: 1900, y: 380}, {x: 2200, y: 250}, {x: 2400, y: 350}, {x: 2800, y: 350}, {x: 3500, y: 350} ],
+            
+            // Level 2: Medium - Thode bade jumps
+            [ {x: -200, y: 350}, {x: 300, y: 350}, {x: 600, y: 150}, {x: 800, y: 400}, {x: 1200, y: 400}, {x: 1400, y: 250}, {x: 1500, y: 200}, {x: 1700, y: 400}, {x: 2200, y: 400}, {x: 2500, y: 150}, {x: 2800, y: 380}, {x: 3500, y: 380} ],
+            
+            // Level 3: Hard - Khatarnak khayi (steep drops) aur lamba rasta
+            [ {x: -200, y: 300}, {x: 200, y: 300}, {x: 400, y: 100}, {x: 600, y: 400}, {x: 900, y: 400}, {x: 1000, y: 200}, {x: 1200, y: 200}, {x: 1400, y: 400}, {x: 1800, y: 400}, {x: 2100, y: 100}, {x: 2300, y: 100}, {x: 2600, y: 400}, {x: 3000, y: 400}, {x: 3500, y: 400}, {x: 4000, y: 400} ],
+            
+            // Level 4: Expert - Continuous bumps aur lambi udaan
+            [ {x: -200, y: 350}, {x: 300, y: 350}, {x: 500, y: 150}, {x: 700, y: 150}, {x: 900, y: 450}, {x: 1100, y: 450}, {x: 1200, y: 350}, {x: 1300, y: 450}, {x: 1400, y: 350}, {x: 1500, y: 450}, {x: 1800, y: 450}, {x: 2200, y: 100}, {x: 2500, y: 400}, {x: 3200, y: 400}, {x: 3800, y: 400}, {x: 4500, y: 400} ],
+            
+            // Level 5: Master - Rollercoaster level, ek galti aur game over!
+            [ {x: -200, y: 300}, {x: 200, y: 300}, {x: 500, y: 50}, {x: 600, y: 50}, {x: 800, y: 450}, {x: 1200, y: 450}, {x: 1500, y: 100}, {x: 1700, y: 400}, {x: 1900, y: 100}, {x: 2100, y: 400}, {x: 2400, y: 100}, {x: 2800, y: 450}, {x: 3500, y: 450}, {x: 4000, y: 200}, {x: 4300, y: 450}, {x: 5000, y: 450} ]
         ];
 
         const keys = { right: false, left: false };
@@ -72,25 +89,39 @@
         btnLeft.addEventListener('touchstart', startLeft); btnLeft.addEventListener('touchend', stopLeft);
         btnLeft.addEventListener('mousedown', startLeft); btnLeft.addEventListener('mouseup', stopLeft); btnLeft.addEventListener('mouseleave', stopLeft);
 
-        function findTrackSegment(x) {
-            let track = tracks[currentLevel - 1];
-            for (let i = 0; i < track.length - 1; i++) {
-                if (x >= track[i].x && x <= track[i + 1].x) return i;
-            }
-            return -1;
-        }
-
         function resetLevel(newLevel) {
             currentLevel = newLevel;
             isGameOver = false; isLevelComplete = false;
             bike.x = 100; bike.y = 150; bike.dx = 0; bike.dy = 0;
-            bike.angle = 0; bike.angVel = 0;
+            bike.angle = 0; bike.angVel = 0; bike.wheelRotation = 0;
+            particles = [];
+            cameraX = 0; targetCameraX = 0;
             overlay.style.display = 'none';
         }
 
         function handleOverlay() {
             if (isGameOver) resetLevel(currentLevel);
-            else if (isLevelComplete) resetLevel(currentLevel >= tracks.length ? 1 : currentLevel + 1);
+            else if (isLevelComplete) {
+                if (currentLevel >= tracks.length) {
+                    currentLevel = 1; // Game complete hone par wapas Level 1 se shuru
+                } else {
+                    currentLevel++;
+                }
+                resetLevel(currentLevel);
+            }
+        }
+
+        function createDust() {
+            if (Math.random() > 0.5) {
+                particles.push({
+                    x: bike.x - bike.w/2, 
+                    y: bike.y + bike.h/2 + 5,
+                    vx: -bike.dx * 0.3 + (Math.random() - 0.5),
+                    vy: Math.random() * -2,
+                    life: 1,
+                    size: Math.random() * 4 + 2
+                });
+            }
         }
 
         function update() {
@@ -101,131 +132,189 @@
             bike.torque = 0;
 
             if (keys.right) {
-                if (bike.grounded) bike.dx += 0.5; // Race
-                else bike.torque = 0.05; // Tilt aage
+                if (bike.grounded) { bike.dx += 0.6; createDust(); }
+                else bike.torque = 0.04; 
             }
             if (keys.left) {
-                if (bike.grounded) bike.dx -= 0.5; // Brake/Peeche
-                else bike.torque = -0.05; // Tilt peeche
+                if (bike.grounded) { bike.dx -= 0.5; createDust(); }
+                else bike.torque = -0.04;
             }
 
+            bike.dx *= bike.grounded ? bike.friction : bike.airFriction;
             bike.angVel += bike.torque;
-            bike.angVel *= 0.95;
+            bike.angVel *= 0.94; 
             bike.angle += bike.angVel;
+            bike.wheelRotation += bike.dx * 0.1;
 
             bike.grounded = false;
-            let seg = findTrackSegment(bike.x);
             let track = tracks[currentLevel - 1];
+            
+            for (let i = 0; i < track.length - 1; i++) {
+                if (bike.x >= track[i].x && bike.x <= track[i + 1].x) {
+                    let p1 = track[i], p2 = track[i + 1];
+                    let t = (bike.x - p1.x) / (p2.x - p1.x);
+                    let trackY = p1.y + (p2.y - p1.y) * t - bike.h/2 - bike.wheelRadius + 2;
 
-            if (seg !== -1) {
-                let p1 = track[seg], p2 = track[seg + 1];
-                let t = (bike.x - p1.x) / (p2.x - p1.x);
-                let trackY = p1.y + (p2.y - p1.y) * t - bike.h/2 - bike.wheelRadius;
+                    if (bike.y >= trackY) {
+                        bike.y = trackY;
+                        bike.dy = 0;
+                        bike.grounded = true;
 
-                if (bike.y >= trackY) {
-                    bike.y = trackY;
-                    bike.dy = 0;
-                    bike.grounded = true;
-                    bike.dx *= bike.friction;
+                        let targetAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                        if(Math.abs(bike.torque) < 0.01) {
+                            bike.angle += (targetAngle - bike.angle) * 0.3;
+                        }
 
-                    let targetAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-                    if(Math.abs(bike.torque) < 0.01) bike.angle = targetAngle;
-
-                    let angleDeg = bike.angle * (180/Math.PI);
-                    if (angleDeg > 120 || angleDeg < -120) {
-                        isGameOver = true;
-                        overlayText.innerText = "CRASHED! 💥";
-                        overlayButton.innerText = "Try Again";
-                        overlay.style.display = 'flex';
+                        let angleDeg = bike.angle * (180/Math.PI);
+                        if (angleDeg > 130 || angleDeg < -130) {
+                            isGameOver = true;
+                            overlayText.innerHTML = "CRASHED! 💥<br><span style='font-size: 24px;'>Uth bhai, dobara try kar!</span>";
+                            overlayButton.innerText = "Try Again";
+                            overlay.style.display = 'flex';
+                        }
                     }
+                    break;
                 }
             }
 
             bike.x += bike.dx;
 
-            // Finish Line check
             if (bike.x > track[track.length - 2].x) {
                 isLevelComplete = true;
-                overlayText.innerText = "Level Complete! 🏁";
-                overlayButton.innerText = currentLevel >= tracks.length ? "Play Again" : "Next Level";
+                if(currentLevel >= tracks.length) {
+                    overlayText.innerHTML = "🏆 CHAMPION! 🏆<br><span style='font-size: 24px;'>Tune saare 5 level paar kar liye!</span>";
+                    overlayButton.innerText = "Play Again (Level 1)";
+                } else {
+                    overlayText.innerHTML = `Level ${currentLevel} Complete! 🏁`;
+                    overlayButton.innerText = "Next Level";
+                }
                 overlay.style.display = 'flex';
             }
 
-            // CAMERA UPDATE: Camera bike ke peeche chalti hai
-            cameraX = bike.x - 200; 
+            for(let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx; p.y += p.vy;
+                p.life -= 0.03;
+                if(p.life <= 0) particles.splice(i, 1);
+            }
+
+            targetCameraX = bike.x - canvas.width * 0.35; 
+            cameraX += (targetCameraX - cameraX) * 0.1; 
+        }
+
+        function drawWheel(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(bike.wheelRotation);
+            
+            ctx.fillStyle = '#111';
+            ctx.beginPath(); ctx.arc(0, 0, bike.wheelRadius, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#ccc'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(0, 0, bike.wheelRadius - 2, 0, Math.PI * 2); ctx.stroke();
+            ctx.strokeStyle = '#7f8c8d'; ctx.lineWidth = 1;
+            for(let i=0; i<4; i++) {
+                ctx.beginPath();
+                ctx.moveTo(-bike.wheelRadius+2, 0); ctx.lineTo(bike.wheelRadius-2, 0); ctx.stroke();
+                ctx.rotate(Math.PI / 4);
+            }
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // 1. DUNIYA DRAW KARNA (Camera Offset ke sath)
-            ctx.save();
-            ctx.translate(-cameraX, 0); // Camera move kar raha hai
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGrad.addColorStop(0, "#4facfe");
+            skyGrad.addColorStop(1, "#00f2fe");
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             let track = tracks[currentLevel - 1];
-            
-            // Ground Pahaad
-            ctx.fillStyle = '#E2C27D';
+
+            ctx.save();
+            ctx.translate(-(cameraX * 0.3), 0); 
+            ctx.fillStyle = '#7ebdb4'; 
+            ctx.beginPath(); ctx.moveTo(-1000, canvas.height);
+            for(let i=-1000; i<8000; i+=300) { ctx.lineTo(i, 200 + Math.sin(i*0.01)*50); }
+            ctx.lineTo(8000, canvas.height); ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(-cameraX, 0); 
+
+            ctx.fillStyle = '#8B5A2B'; 
             ctx.beginPath();
-            ctx.moveTo(track[0].x, canvas.height);
+            ctx.moveTo(track[0].x, canvas.height + 50);
             for (let i = 0; i < track.length; i++) ctx.lineTo(track[i].x, track[i].y);
-            ctx.lineTo(track[track.length-1].x, canvas.height);
+            ctx.lineTo(track[track.length-1].x, canvas.height + 50);
             ctx.fill();
 
-            // Track Red Line
-            ctx.strokeStyle = 'red';
-            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#27ae60';
+            ctx.lineWidth = 12;
+            ctx.lineJoin = 'round'; ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(track[0].x, track[0].y);
             for (let i = 1; i < track.length; i++) ctx.lineTo(track[i].x, track[i].y);
             ctx.stroke();
 
-            // Finish Line flag
-            ctx.fillStyle = 'black';
-            ctx.fillRect(track[track.length-2].x, track[track.length-2].y - 100, 5, 100);
-            ctx.fillStyle = 'white';
-            ctx.fillRect(track[track.length-2].x + 5, track[track.length-2].y - 100, 40, 30);
-            ctx.fillStyle = 'black';
-            ctx.font = '12px Arial';
-            ctx.fillText("FINISH", track[track.length-2].x + 7, track[track.length-2].y - 80);
+            ctx.shadowColor = 'rgba(255, 50, 50, 0.8)';
+            ctx.shadowBlur = 10;
+            ctx.strokeStyle = '#ff3b30';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(track[0].x, track[0].y);
+            for (let i = 1; i < track.length; i++) ctx.lineTo(track[i].x, track[i].y);
+            ctx.stroke();
+            ctx.shadowBlur = 0; 
 
-            // Bike Draw Karna
+            let finishX = track[track.length-2].x;
+            let finishY = track[track.length-2].y;
+            ctx.fillStyle = '#555'; ctx.fillRect(finishX, finishY - 120, 6, 120); 
+            ctx.fillStyle = 'white'; ctx.fillRect(finishX + 6, finishY - 120, 50, 40);
+            ctx.fillStyle = 'black'; ctx.fillRect(finishX + 6, finishY - 120, 25, 20); ctx.fillRect(finishX + 31, finishY - 100, 25, 20);
+            
+            particles.forEach(p => {
+                ctx.fillStyle = `rgba(180, 150, 120, ${p.life})`;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+            });
+
             ctx.save();
             ctx.translate(bike.x, bike.y);
             ctx.rotate(bike.angle);
 
-            // Bike Body
-            ctx.fillStyle = '#3498db';
-            ctx.fillRect(-bike.w/2, -bike.h/2, bike.w, bike.h);
-            
-            // Rider
-            ctx.fillStyle = '#f1c40f'; // Helmet
-            ctx.beginPath(); ctx.arc(-5, -bike.h/2 - 12, 10, 0, Math.PI*2); ctx.fill();
-
-            // Wheels
-            ctx.fillStyle = '#111';
+            ctx.fillStyle = '#e74c3c';
             ctx.beginPath();
-            ctx.arc(-bike.w/2 + 10, bike.h/2, bike.wheelRadius, 0, Math.PI * 2);
-            ctx.arc(bike.w/2 - 10, bike.h/2, bike.wheelRadius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.fillStyle = '#fff'; // Rims
-            ctx.beginPath();
-            ctx.arc(-bike.w/2 + 10, bike.h/2, 4, 0, Math.PI * 2);
-            ctx.arc(bike.w/2 - 10, bike.h/2, 4, 0, Math.PI * 2);
+            ctx.moveTo(-bike.w/2 + 5, -bike.h/2 + 5);
+            ctx.lineTo(bike.w/2 - 10, -bike.h/2); 
+            ctx.lineTo(bike.w/2 - 5, bike.h/2 - 5);
+            ctx.lineTo(-bike.w/2, bike.h/2);
+            ctx.closePath();
             ctx.fill();
 
-            ctx.restore(); // Bike ka rotation hatao
-            ctx.restore(); // Camera ka effect hatao taaki score ek jagah ruke
+            ctx.fillStyle = 'yellow';
+            ctx.beginPath(); ctx.arc(bike.w/2 - 5, -bike.h/2 + 5, 4, 0, Math.PI*2); ctx.fill();
 
-            // 2. UI DRAW KARNA (Bina Camera Offset ke)
-            ctx.fillStyle = '#333';
-            ctx.font = 'bold 24px Arial';
-            ctx.fillText(`Level: ${currentLevel}`, 20, 40);
+            ctx.fillStyle = '#2c3e50'; 
+            ctx.fillRect(-8, -bike.h/2 - 15, 16, 18);
+            ctx.fillStyle = '#f1c40f'; 
+            ctx.beginPath(); ctx.arc(2, -bike.h/2 - 18, 11, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#34495e';
+            ctx.fillRect(4, -bike.h/2 - 22, 8, 6);
+
+            drawWheel(-bike.w/2 + 8, bike.h/2); 
+            drawWheel(bike.w/2 - 8, bike.h/2);  
+
+            ctx.restore(); 
+            ctx.restore(); 
+
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 26px "Segoe UI", sans-serif';
+            ctx.shadowColor = 'black'; ctx.shadowBlur = 4;
+            ctx.fillText(`🏆 Level: ${currentLevel} / 5`, 20, 40);
             
-            let distance = Math.floor((bike.x - 100) / 10);
-            if (distance < 0) distance = 0;
-            ctx.fillText(`Distance: ${distance}m`, 20, 70);
+            let distance = Math.max(0, Math.floor((bike.x - 100) / 10));
+            ctx.fillText(`📏 Dist: ${distance}m`, 20, 75);
+            ctx.shadowBlur = 0; 
         }
 
         function loop() {
