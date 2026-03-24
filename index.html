@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Advanced Bike Race - Touch</title>
+    <title>Scrolling Bike Race</title>
     <style>
         body { margin: 0; background-color: #87CEEB; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; overflow: hidden; user-select: none; }
         #gameCanvas { background-color: #fff; border: 4px solid #333; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); max-width: 95%; max-height: 80vh; }
@@ -12,7 +12,7 @@
         .btn:active { background-color: #c0392b; transform: translateY(4px); box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         .btn-race { background-color: #2ecc71; }
         .btn-race:active { background-color: #27ae60; }
-        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: white; display: none; flex-direction: column; justify-content: center; align-items: center; font-size: 40px; font-weight: bold; }
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: white; display: none; flex-direction: column; justify-content: center; align-items: center; font-size: 40px; font-weight: bold; z-index: 10; }
         #overlay button { margin-top: 20px; padding: 15px 30px; font-size: 24px; border-radius: 10px; background: #3498db; color: white; border: none; cursor: pointer; }
     </style>
 </head>
@@ -37,240 +37,159 @@
         const overlayText = document.getElementById('overlayText');
         const overlayButton = document.getElementById('overlayButton');
 
-        // Game State variables
         let currentLevel = 1;
-        let score = 0;
         let isGameOver = false;
         let isLevelComplete = false;
+        let cameraX = 0; // CAMERA OFFSET
 
-        // Bike Object properties
+        // Bike setup
         const bike = {
-            x: 50, y: 150,
-            w: 55, h: 25, // Draw w/h, physics uses w/h for collisions
+            x: 100, y: 150,
+            w: 50, h: 25,
             dx: 0, dy: 0,
-            torque: 0, // for air tilt
-            angle: 0, angVel: 0,
-            gravity: 0.5, friction: 0.96,
-            grounded: false, canJump: false,
-            wheelRadius: 10
+            angle: 0, angVel: 0, torque: 0,
+            gravity: 0.6, friction: 0.98,
+            grounded: false, wheelRadius: 12
         };
 
-        // Current track segment for collision
-        let currentTrackPoint = 0;
-
-        // Level Track Points (X, Y)
+        // Lamba Track (Road)
         const tracks = [
-            // Level 1: Simple hills and a loop
-            [
-                {x: 0, y: 350}, {x: 100, y: 350}, {x: 200, y: 320}, {x: 300, y: 300}, {x: 400, y: 320}, 
-                {x: 500, y: 350}, {x: 600, y: 350}, {x: 650, y: 200}, {x: 700, y: 350}, {x: 750, y: 350},
-                {x: 800, y: 350}, {x: 900, y: 350} // Offscreen end
-            ],
-            // Level 2: Bigger hills, gap and a loop
-            [
-                {x: 0, y: 350}, {x: 150, y: 350}, {x: 250, y: 250}, {x: 350, y: 350}, {x: 450, y: 350}, 
-                {x: 500, y: 350}, {x: 550, y: 250}, {x: 600, y: 350}, {x: 650, y: 350}, {x: 700, y: 150},
-                {x: 750, y: 150}, {x: 800, y: 350}, {x: 850, y: 350}, {x: 900, y: 350} // offscreen
-            ],
-            // Level 3: Extreme! Steeper, bigger loops
-            [
-                {x: 0, y: 350}, {x: 100, y: 350}, {x: 150, y: 150}, {x: 200, y: 150}, {x: 250, y: 350}, 
-                {x: 300, y: 350}, {x: 350, y: 250}, {x: 400, y: 100}, {x: 450, y: 250}, {x: 500, y: 350},
-                {x: 550, y: 350}, {x: 600, y: 200}, {x: 650, y: 350}, {x: 700, y: 350}, {x: 750, y: 150},
-                {x: 800, y: 150}, {x: 850, y: 350}, {x: 900, y: 350} // offscreen
-            ]
+            [ {x: -200, y: 300}, {x: 200, y: 300}, {x: 400, y: 250}, {x: 600, y: 300}, {x: 800, y: 200}, {x: 1000, y: 300}, {x: 1300, y: 300}, {x: 1500, y: 150}, {x: 1800, y: 350}, {x: 2200, y: 350}, {x: 2500, y: 300}, {x: 3000, y: 300} ],
+            [ {x: -200, y: 300}, {x: 300, y: 300}, {x: 500, y: 150}, {x: 700, y: 350}, {x: 1000, y: 350}, {x: 1200, y: 200}, {x: 1400, y: 350}, {x: 1800, y: 100}, {x: 2000, y: 350}, {x: 2500, y: 350}, {x: 3000, y: 350} ]
         ];
 
-        // Button States for tablet
         const keys = { right: false, left: false };
         const btnLeft = document.getElementById('btnLeft');
         const btnRight = document.getElementById('btnRight');
 
-        // Functions for buttons (Touch + Mouse support)
         const startRight = (e) => { e.preventDefault(); keys.right = true; };
         const stopRight = (e) => { e.preventDefault(); keys.right = false; };
         const startLeft = (e) => { e.preventDefault(); keys.left = true; };
         const stopLeft = (e) => { e.preventDefault(); keys.left = false; };
 
-        // Right Button Events
-        btnRight.addEventListener('touchstart', startRight);
-        btnRight.addEventListener('touchend', stopRight);
-        btnRight.addEventListener('mousedown', startRight);
-        btnRight.addEventListener('mouseup', stopRight);
-        btnRight.addEventListener('mouseleave', stopRight);
+        btnRight.addEventListener('touchstart', startRight); btnRight.addEventListener('touchend', stopRight);
+        btnRight.addEventListener('mousedown', startRight); btnRight.addEventListener('mouseup', stopRight); btnRight.addEventListener('mouseleave', stopRight);
+        btnLeft.addEventListener('touchstart', startLeft); btnLeft.addEventListener('touchend', stopLeft);
+        btnLeft.addEventListener('mousedown', startLeft); btnLeft.addEventListener('mouseup', stopLeft); btnLeft.addEventListener('mouseleave', stopLeft);
 
-        // Left Button Events
-        btnLeft.addEventListener('touchstart', startLeft);
-        btnLeft.addEventListener('touchend', stopLeft);
-        btnLeft.addEventListener('mousedown', startLeft);
-        btnLeft.addEventListener('mouseup', stopLeft);
-        btnLeft.addEventListener('mouseleave', stopLeft);
-
-        // Track collision logic
         function findTrackSegment(x) {
-            for (let i = 0; i < tracks[currentLevel - 1].length - 1; i++) {
-                if (x >= tracks[currentLevel - 1][i].x && x <= tracks[currentLevel - 1][i + 1].x) {
-                    return i;
-                }
+            let track = tracks[currentLevel - 1];
+            for (let i = 0; i < track.length - 1; i++) {
+                if (x >= track[i].x && x <= track[i + 1].x) return i;
             }
             return -1;
         }
 
-        // Lerp function for smooth track interpolation
-        function lerp(a, b, t) {
-            return a + (b - a) * t;
-        }
-
         function resetLevel(newLevel) {
             currentLevel = newLevel;
-            score = 0;
-            isGameOver = false;
-            isLevelComplete = false;
-            bike.x = 50; bike.y = 150;
-            bike.dx = 0; bike.dy = 0;
+            isGameOver = false; isLevelComplete = false;
+            bike.x = 100; bike.y = 150; bike.dx = 0; bike.dy = 0;
             bike.angle = 0; bike.angVel = 0;
-            bike.torque = 0;
-            bike.grounded = false;
             overlay.style.display = 'none';
         }
 
         function handleOverlay() {
-            if (isGameOver) {
-                resetLevel(1);
-            } else if (isLevelComplete) {
-                if (currentLevel < tracks.length) {
-                    resetLevel(currentLevel + 1);
-                } else {
-                    resetLevel(1); // Back to start after final level
-                }
-            }
+            if (isGameOver) resetLevel(currentLevel);
+            else if (isLevelComplete) resetLevel(currentLevel >= tracks.length ? 1 : currentLevel + 1);
         }
 
         function update() {
             if (isGameOver || isLevelComplete) return;
 
-            // Gravity
             bike.dy += bike.gravity;
             bike.y += bike.dy;
+            bike.torque = 0;
 
-            // Movement and Torque logic
-            bike.torque = 0; // reset air torque
             if (keys.right) {
-                if (bike.grounded) {
-                    bike.dx += 0.9; // Normal acceleration
-                } else {
-                    bike.torque = 0.03; // In-air tilt forward
-                }
+                if (bike.grounded) bike.dx += 0.5; // Race
+                else bike.torque = 0.05; // Tilt aage
             }
             if (keys.left) {
-                if (bike.grounded) {
-                    bike.dx -= 0.6; // Normal braking/reverse
-                } else {
-                    bike.torque = -0.03; // In-air tilt back
-                }
+                if (bike.grounded) bike.dx -= 0.5; // Brake/Peeche
+                else bike.torque = -0.05; // Tilt peeche
             }
 
-            // Air Rotation
             bike.angVel += bike.torque;
-            bike.angVel *= 0.98; // Air angular friction
+            bike.angVel *= 0.95;
             bike.angle += bike.angVel;
 
-            // Track Collision
             bike.grounded = false;
-            currentTrackPoint = findTrackSegment(bike.x);
-            if (currentTrackPoint !== -1) {
-                const p1 = tracks[currentLevel - 1][currentTrackPoint];
-                const p2 = tracks[currentLevel - 1][currentTrackPoint + 1];
-                
-                const t = (bike.x - p1.x) / (p2.x - p1.x);
-                const trackY = lerp(p1.y, p2.y, t) - bike.h/2 - bike.wheelRadius;
+            let seg = findTrackSegment(bike.x);
+            let track = tracks[currentLevel - 1];
 
-                // Wheel contact
+            if (seg !== -1) {
+                let p1 = track[seg], p2 = track[seg + 1];
+                let t = (bike.x - p1.x) / (p2.x - p1.x);
+                let trackY = p1.y + (p2.y - p1.y) * t - bike.h/2 - bike.wheelRadius;
+
                 if (bike.y >= trackY) {
                     bike.y = trackY;
                     bike.dy = 0;
                     bike.grounded = true;
-                    bike.dx *= bike.friction; // friction on ground
+                    bike.dx *= bike.friction;
 
-                    // Align to track slope
-                    const angleRad = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-                    
-                    // Simple alignment check, don't update if air torque is strong
-                    if(Math.abs(bike.torque) < 0.01){
-                        bike.angle = angleRad;
-                    }
+                    let targetAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                    if(Math.abs(bike.torque) < 0.01) bike.angle = targetAngle;
 
-                    // Check for crash condition (bad landing)
-                    const angleDeg = bike.angle * (180/Math.PI);
-                    if (angleDeg > 110 || angleDeg < -110) {
+                    let angleDeg = bike.angle * (180/Math.PI);
+                    if (angleDeg > 120 || angleDeg < -120) {
                         isGameOver = true;
-                        overlayText.innerText = "CRASHED!";
+                        overlayText.innerText = "CRASHED! 💥";
                         overlayButton.innerText = "Try Again";
                         overlay.style.display = 'flex';
                     }
                 }
-            } else if (bike.x < 0) { // Off left edge
-                bike.x = 0;
-                bike.dx = 0;
-            } else if (bike.x > 800) { // off right edge
-                // End condition for simple loop tracks - go past a certain point
-                // Level completion when bike reaches the very last point
-                if(currentLevel < tracks.length && findTrackSegment(tracks[currentLevel-1][tracks[currentLevel-1].length-1].x) == -1){
-                  isLevelComplete = true;
-                  overlayText.innerText = "Level Complete!";
-                  overlayButton.innerText = "Next Level";
-                  overlay.style.display = 'flex';
-                } else if(currentLevel == tracks.length){
-                  isLevelComplete = true;
-                  overlayText.innerText = "Congratulations, you won!";
-                  overlayButton.innerText = "Play Again";
-                  overlay.style.display = 'flex';
-                }
             }
-
-            // Screen loop
-            if(bike.x > canvas.width) bike.x = -bike.w;
-            if(bike.x < -bike.w) bike.x = canvas.width;
 
             bike.x += bike.dx;
 
-            // Score update
-            if (bike.dx > 0) {
-                score += bike.dx;
+            // Finish Line check
+            if (bike.x > track[track.length - 2].x) {
+                isLevelComplete = true;
+                overlayText.innerText = "Level Complete! 🏁";
+                overlayButton.innerText = currentLevel >= tracks.length ? "Play Again" : "Next Level";
+                overlay.style.display = 'flex';
             }
+
+            // CAMERA UPDATE: Camera bike ke peeche chalti hai
+            cameraX = bike.x - 200; 
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Track and Background hills
-            ctx.fillStyle = '#E2C27D'; 
-            ctx.fillRect(0, 350, canvas.width, canvas.height - 350); // Base Ground
+            // 1. DUNIYA DRAW KARNA (Camera Offset ke sath)
+            ctx.save();
+            ctx.translate(-cameraX, 0); // Camera move kar raha hai
+
+            let track = tracks[currentLevel - 1];
             
-            const currentTrack = tracks[currentLevel - 1];
-            
-            ctx.fillStyle = '#D4AF37'; // Golden/sandy hill color
+            // Ground Pahaad
+            ctx.fillStyle = '#E2C27D';
             ctx.beginPath();
-            ctx.moveTo(currentTrack[0].x, canvas.height);
-            for (let i = 0; i < currentTrack.length; i++) {
-                ctx.lineTo(currentTrack[i].x, currentTrack[i].y);
-            }
-            ctx.lineTo(currentTrack[currentTrack.length-1].x, canvas.height);
+            ctx.moveTo(track[0].x, canvas.height);
+            for (let i = 0; i < track.length; i++) ctx.lineTo(track[i].x, track[i].y);
+            ctx.lineTo(track[track.length-1].x, canvas.height);
             ctx.fill();
 
-            // Track red line
+            // Track Red Line
             ctx.strokeStyle = 'red';
-            ctx.lineWidth = 4;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
+            ctx.lineWidth = 5;
             ctx.beginPath();
-            ctx.moveTo(currentTrack[0].x, currentTrack[0].y);
-            for (let i = 1; i < currentTrack.length; i++) {
-                ctx.lineTo(currentTrack[i].x, currentTrack[i].y);
-            }
+            ctx.moveTo(track[0].x, track[0].y);
+            for (let i = 1; i < track.length; i++) ctx.lineTo(track[i].x, track[i].y);
             ctx.stroke();
 
-            // Draw Bike
+            // Finish Line flag
+            ctx.fillStyle = 'black';
+            ctx.fillRect(track[track.length-2].x, track[track.length-2].y - 100, 5, 100);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(track[track.length-2].x + 5, track[track.length-2].y - 100, 40, 30);
+            ctx.fillStyle = 'black';
+            ctx.font = '12px Arial';
+            ctx.fillText("FINISH", track[track.length-2].x + 7, track[track.length-2].y - 80);
+
+            // Bike Draw Karna
             ctx.save();
             ctx.translate(bike.x, bike.y);
             ctx.rotate(bike.angle);
@@ -279,44 +198,34 @@
             ctx.fillStyle = '#3498db';
             ctx.fillRect(-bike.w/2, -bike.h/2, bike.w, bike.h);
             
-            // simple player/rider
-            ctx.fillStyle = '#f1c40f'; // helmet
-            ctx.beginPath(); ctx.arc(-5, -bike.h/2 - 10, 8, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#111'; // face
-            ctx.fillRect(-5, -bike.h/2 - 5, 12, 12);
+            // Rider
+            ctx.fillStyle = '#f1c40f'; // Helmet
+            ctx.beginPath(); ctx.arc(-5, -bike.h/2 - 12, 10, 0, Math.PI*2); ctx.fill();
 
-            // Bike Wheels
+            // Wheels
             ctx.fillStyle = '#111';
             ctx.beginPath();
             ctx.arc(-bike.w/2 + 10, bike.h/2, bike.wheelRadius, 0, Math.PI * 2);
             ctx.arc(bike.w/2 - 10, bike.h/2, bike.wheelRadius, 0, Math.PI * 2);
             ctx.fill();
-            // rims
-            ctx.fillStyle = '#fff';
+            
+            ctx.fillStyle = '#fff'; // Rims
             ctx.beginPath();
             ctx.arc(-bike.w/2 + 10, bike.h/2, 4, 0, Math.PI * 2);
             ctx.arc(bike.w/2 - 10, bike.h/2, 4, 0, Math.PI * 2);
             ctx.fill();
 
-            ctx.restore();
+            ctx.restore(); // Bike ka rotation hatao
+            ctx.restore(); // Camera ka effect hatao taaki score ek jagah ruke
 
-            // Draw Score and Level
+            // 2. UI DRAW KARNA (Bina Camera Offset ke)
             ctx.fillStyle = '#333';
             ctx.font = 'bold 24px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillText(`Level: ${currentLevel}`, 20, 30);
-            ctx.fillText(`Score: ${Math.floor(score/10)}`, 20, 60);
-
-            // Tutorial hints
-            if (currentLevel == 1 && score < 100) {
-              ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-              ctx.fillRect(canvas.width/2 - 150, canvas.height/2 - 30, 300, 60);
-              ctx.fillStyle = '#333';
-              ctx.font = '18px Arial';
-              ctx.textAlign = 'center';
-              ctx.fillText("Race daba kar loop ke upar jao!", canvas.width/2, canvas.height/2);
-              ctx.fillText("Hawa mein tilt karo!", canvas.width/2, canvas.height/2 + 20);
-            }
+            ctx.fillText(`Level: ${currentLevel}`, 20, 40);
+            
+            let distance = Math.floor((bike.x - 100) / 10);
+            if (distance < 0) distance = 0;
+            ctx.fillText(`Distance: ${distance}m`, 20, 70);
         }
 
         function loop() {
