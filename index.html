@@ -3,31 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Premium Bike Race - 5 Levels</title>
+    <title>Bike Race Pro - The Ultimate 7 Levels</title>
     <style>
-        body { margin: 0; background-color: #111; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; user-select: none; }
-        #gameCanvas { background-color: #87CEEB; border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); max-width: 100%; max-height: 80vh; border: 2px solid #555; }
+        body { margin: 0; background-color: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; user-select: none; }
+        #gameCanvas { border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.8); max-width: 100%; max-height: 80vh; border: 2px solid #333; }
+        
+        /* UI and Progress Bar */
+        #uiContainer { position: fixed; top: 15px; width: 90%; max-width: 800px; display: flex; flex-direction: column; gap: 5px; z-index: 5; pointer-events: none; }
+        .hud-text { color: white; font-size: 22px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); display: flex; justify-content: space-between; }
+        #progressBarBg { width: 100%; height: 15px; background: rgba(0,0,0,0.6); border-radius: 10px; border: 2px solid white; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
+        #progressBarFill { width: 0%; height: 100%; background: linear-gradient(90deg, #f1c40f, #e74c3c); transition: width 0.1s linear; }
+
+        /* Controls */
         .controls { position: fixed; bottom: 15px; display: flex; gap: 20px; width: 100%; justify-content: center; padding: 0 20px; box-sizing: border-box; z-index: 5; }
-        .btn { background: linear-gradient(to bottom, #e74c3c, #c0392b); color: white; border: none; padding: 20px 0; width: 45%; font-size: 22px; font-weight: 900; border-radius: 15px; box-shadow: 0 6px 0 #922b21, 0 10px 15px rgba(0,0,0,0.4); touch-action: manipulation; text-transform: uppercase; letter-spacing: 1px; }
+        .btn { background: linear-gradient(to bottom, #e74c3c, #c0392b); color: white; border: none; padding: 18px 0; width: 45%; font-size: 20px; font-weight: 900; border-radius: 15px; box-shadow: 0 6px 0 #922b21, 0 10px 15px rgba(0,0,0,0.4); touch-action: manipulation; text-transform: uppercase; letter-spacing: 1px; }
         .btn:active { transform: translateY(6px); box-shadow: 0 0px 0 #922b21, 0 4px 6px rgba(0,0,0,0.4); }
         .btn-race { background: linear-gradient(to bottom, #2ecc71, #27ae60); box-shadow: 0 6px 0 #1e8449, 0 10px 15px rgba(0,0,0,0.4); }
         .btn-race:active { box-shadow: 0 0px 0 #1e8449, 0 4px 6px rgba(0,0,0,0.4); }
+        
+        /* Overlays */
         #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); color: #fff; display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(5px); }
-        #overlay h1 { font-size: 50px; margin: 0; text-align: center; text-shadow: 2px 2px 10px rgba(255,255,255,0.3); }
-        #overlay button { margin-top: 30px; padding: 15px 40px; font-size: 24px; font-weight: bold; border-radius: 50px; background: linear-gradient(to right, #3498db, #2980b9); color: white; border: none; cursor: pointer; box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4); }
+        #overlay h1 { font-size: 45px; margin: 0; text-align: center; text-shadow: 2px 2px 10px rgba(255,255,255,0.3); }
+        #overlay p { font-size: 20px; color: #aaa; margin-top: 10px; text-align: center; }
+        #overlay button { margin-top: 30px; padding: 15px 40px; font-size: 22px; font-weight: bold; border-radius: 50px; background: linear-gradient(to right, #3498db, #2980b9); color: white; border: none; cursor: pointer; box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4); }
     </style>
 </head>
 <body>
 
+    <div id="uiContainer">
+        <div class="hud-text">
+            <span id="levelText">🏆 Level: 1 / 7</span>
+            <span id="speedText">⚡ Speed: 0</span>
+        </div>
+        <div id="progressBarBg"><div id="progressBarFill"></div></div>
+    </div>
+
     <canvas id="gameCanvas" width="900" height="450"></canvas>
     
     <div class="controls">
-        <button class="btn" id="btnLeft">Peeche / Tilt</button>
-        <button class="btn btn-race" id="btnRight">Race / Tilt</button>
+        <button class="btn" id="btnLeft">Peeche / Tilt Back</button>
+        <button class="btn btn-race" id="btnRight">Race / Tilt Fwd</button>
     </div>
 
     <div id="overlay">
         <h1 id="overlayText">Level Complete!</h1>
+        <p id="overlaySubtext"></p>
         <button id="overlayButton" onclick="handleOverlay()">Next Level</button>
     </div>
 
@@ -36,7 +56,11 @@
         const ctx = canvas.getContext('2d');
         const overlay = document.getElementById('overlay');
         const overlayText = document.getElementById('overlayText');
+        const overlaySubtext = document.getElementById('overlaySubtext');
         const overlayButton = document.getElementById('overlayButton');
+        const progressFill = document.getElementById('progressBarFill');
+        const levelText = document.getElementById('levelText');
+        const speedText = document.getElementById('speedText');
 
         let currentLevel = 1;
         let isGameOver = false;
@@ -46,33 +70,39 @@
         let targetCameraX = 0;
 
         const bike = {
-            x: 100, y: 150,
-            w: 48, h: 22,
-            dx: 0, dy: 0,
-            angle: 0, angVel: 0, torque: 0,
-            gravity: 0.55, friction: 0.98, airFriction: 0.99,
-            grounded: false, wheelRadius: 13,
-            wheelRotation: 0
+            x: 100, y: 150, w: 48, h: 22, dx: 0, dy: 0, angle: 0, angVel: 0, torque: 0,
+            gravity: 0.6, friction: 0.97, airFriction: 0.99, grounded: false, wheelRadius: 13, wheelRotation: 0
         };
 
         let particles = [];
 
-        // 5 LEVELS ADD KAR DIYE GAYE HAIN!
+        // 7 THEMES FOR 7 LEVELS
+        const themes = [
+            { name: "Jungle Plains", sky1: '#87CEEB', sky2: '#e0f6ff', top: '#2ecc71', bottom: '#8B5A2B', mtn: '#7ebdb4' }, // 1
+            { name: "Desert Dunes", sky1: '#f39c12', sky2: '#f1c40f', top: '#e67e22', bottom: '#d35400', mtn: '#c0392b' }, // 2
+            { name: "Snowy Peaks", sky1: '#2c3e50', sky2: '#34495e', top: '#ecf0f1', bottom: '#bdc3c7', mtn: '#7f8c8d' }, // 3
+            { name: "Midnight Ride", sky1: '#0a0a0a', sky2: '#1a1a2e', top: '#4a4e69', bottom: '#22223b', mtn: '#16213e' }, // 4
+            { name: "Volcano Crater", sky1: '#4a0000', sky2: '#000000', top: '#000000', bottom: '#c0392b', mtn: '#2c0000' }, // 5
+            { name: "Sunset Valley", sky1: '#8e44ad', sky2: '#ff7e5f', top: '#f1c40f', bottom: '#e67e22', mtn: '#512da8' }, // 6
+            { name: "Neon Matrix", sky1: '#000000', sky2: '#050505', top: '#00ffcc', bottom: '#003333', mtn: '#001a1a' }  // 7
+        ];
+
+        // 7 UNIQUE TRACKS
         const tracks = [
-            // Level 1: Easy - Naye players ke seekhne ke liye
-            [ {x: -200, y: 350}, {x: 400, y: 350}, {x: 600, y: 280}, {x: 800, y: 350}, {x: 1100, y: 350}, {x: 1300, y: 200}, {x: 1500, y: 380}, {x: 1900, y: 380}, {x: 2200, y: 250}, {x: 2400, y: 350}, {x: 2800, y: 350}, {x: 3500, y: 350} ],
-            
-            // Level 2: Medium - Thode bade jumps
-            [ {x: -200, y: 350}, {x: 300, y: 350}, {x: 600, y: 150}, {x: 800, y: 400}, {x: 1200, y: 400}, {x: 1400, y: 250}, {x: 1500, y: 200}, {x: 1700, y: 400}, {x: 2200, y: 400}, {x: 2500, y: 150}, {x: 2800, y: 380}, {x: 3500, y: 380} ],
-            
-            // Level 3: Hard - Khatarnak khayi (steep drops) aur lamba rasta
-            [ {x: -200, y: 300}, {x: 200, y: 300}, {x: 400, y: 100}, {x: 600, y: 400}, {x: 900, y: 400}, {x: 1000, y: 200}, {x: 1200, y: 200}, {x: 1400, y: 400}, {x: 1800, y: 400}, {x: 2100, y: 100}, {x: 2300, y: 100}, {x: 2600, y: 400}, {x: 3000, y: 400}, {x: 3500, y: 400}, {x: 4000, y: 400} ],
-            
-            // Level 4: Expert - Continuous bumps aur lambi udaan
-            [ {x: -200, y: 350}, {x: 300, y: 350}, {x: 500, y: 150}, {x: 700, y: 150}, {x: 900, y: 450}, {x: 1100, y: 450}, {x: 1200, y: 350}, {x: 1300, y: 450}, {x: 1400, y: 350}, {x: 1500, y: 450}, {x: 1800, y: 450}, {x: 2200, y: 100}, {x: 2500, y: 400}, {x: 3200, y: 400}, {x: 3800, y: 400}, {x: 4500, y: 400} ],
-            
-            // Level 5: Master - Rollercoaster level, ek galti aur game over!
-            [ {x: -200, y: 300}, {x: 200, y: 300}, {x: 500, y: 50}, {x: 600, y: 50}, {x: 800, y: 450}, {x: 1200, y: 450}, {x: 1500, y: 100}, {x: 1700, y: 400}, {x: 1900, y: 100}, {x: 2100, y: 400}, {x: 2400, y: 100}, {x: 2800, y: 450}, {x: 3500, y: 450}, {x: 4000, y: 200}, {x: 4300, y: 450}, {x: 5000, y: 450} ]
+            // L1: Easy
+            [ {x: -200, y: 350}, {x: 400, y: 350}, {x: 600, y: 300}, {x: 800, y: 350}, {x: 1200, y: 350}, {x: 1400, y: 250}, {x: 1600, y: 380}, {x: 2200, y: 380}, {x: 2500, y: 250}, {x: 3000, y: 350}, {x: 3500, y: 350} ],
+            // L2: Desert rolling
+            [ {x: -200, y: 350}, {x: 300, y: 350}, {x: 600, y: 200}, {x: 900, y: 400}, {x: 1300, y: 400}, {x: 1500, y: 150}, {x: 1800, y: 400}, {x: 2300, y: 400}, {x: 2600, y: 200}, {x: 3200, y: 380}, {x: 4000, y: 380} ],
+            // L3: Snow Drops
+            [ {x: -200, y: 200}, {x: 200, y: 200}, {x: 400, y: 400}, {x: 600, y: 400}, {x: 800, y: 150}, {x: 1000, y: 150}, {x: 1300, y: 450}, {x: 1800, y: 450}, {x: 2000, y: 200}, {x: 2300, y: 400}, {x: 2800, y: 400}, {x: 3200, y: 200}, {x: 3800, y: 400}, {x: 4500, y: 400} ],
+            // L4: Night Gaps
+            [ {x: -200, y: 350}, {x: 200, y: 350}, {x: 500, y: 150}, {x: 700, y: 150}, {x: 900, y: 450}, {x: 1200, y: 450}, {x: 1400, y: 200}, {x: 1500, y: 450}, {x: 1800, y: 450}, {x: 2200, y: 100}, {x: 2600, y: 450}, {x: 3200, y: 450}, {x: 3800, y: 200}, {x: 4200, y: 400}, {x: 5000, y: 400} ],
+            // L5: Volcano Jagged
+            [ {x: -200, y: 300}, {x: 200, y: 300}, {x: 400, y: 50}, {x: 600, y: 450}, {x: 800, y: 450}, {x: 1000, y: 100}, {x: 1200, y: 450}, {x: 1600, y: 450}, {x: 1800, y: 50}, {x: 2000, y: 450}, {x: 2400, y: 450}, {x: 2700, y: 100}, {x: 3000, y: 100}, {x: 3300, y: 450}, {x: 4000, y: 450}, {x: 4500, y: 200}, {x: 5500, y: 450} ],
+            // L6: Sunset Big Air
+            [ {x: -200, y: 350}, {x: 300, y: 350}, {x: 700, y: 100}, {x: 1200, y: 450}, {x: 1800, y: 450}, {x: 2200, y: 50}, {x: 2800, y: 450}, {x: 3400, y: 450}, {x: 3800, y: 50}, {x: 4400, y: 450}, {x: 5000, y: 450}, {x: 5500, y: 200}, {x: 6200, y: 450} ],
+            // L7: Neon Final Test
+            [ {x: -200, y: 200}, {x: 300, y: 200}, {x: 500, y: 450}, {x: 700, y: 450}, {x: 1000, y: 50}, {x: 1200, y: 50}, {x: 1500, y: 450}, {x: 1800, y: 450}, {x: 2000, y: 150}, {x: 2200, y: 450}, {x: 2400, y: 150}, {x: 2600, y: 450}, {x: 3000, y: 450}, {x: 3400, y: 50}, {x: 3800, y: 450}, {x: 4500, y: 450}, {x: 5000, y: 100}, {x: 5500, y: 450}, {x: 6000, y: 450}, {x: 6500, y: 150}, {x: 7000, y: 450} ]
         ];
 
         const keys = { right: false, left: false };
@@ -92,34 +122,28 @@
         function resetLevel(newLevel) {
             currentLevel = newLevel;
             isGameOver = false; isLevelComplete = false;
-            bike.x = 100; bike.y = 150; bike.dx = 0; bike.dy = 0;
+            bike.x = 100; bike.y = 100; bike.dx = 0; bike.dy = 0;
             bike.angle = 0; bike.angVel = 0; bike.wheelRotation = 0;
-            particles = [];
-            cameraX = 0; targetCameraX = 0;
+            particles = []; cameraX = 0; targetCameraX = 0;
             overlay.style.display = 'none';
+            levelText.innerText = `🏆 Level: ${currentLevel} / 7`;
         }
 
         function handleOverlay() {
             if (isGameOver) resetLevel(currentLevel);
             else if (isLevelComplete) {
-                if (currentLevel >= tracks.length) {
-                    currentLevel = 1; // Game complete hone par wapas Level 1 se shuru
-                } else {
-                    currentLevel++;
-                }
+                if (currentLevel >= tracks.length) currentLevel = 1;
+                else currentLevel++;
                 resetLevel(currentLevel);
             }
         }
 
-        function createDust() {
-            if (Math.random() > 0.5) {
+        function spawnDust() {
+            if (Math.random() > 0.4) {
                 particles.push({
-                    x: bike.x - bike.w/2, 
-                    y: bike.y + bike.h/2 + 5,
-                    vx: -bike.dx * 0.3 + (Math.random() - 0.5),
-                    vy: Math.random() * -2,
-                    life: 1,
-                    size: Math.random() * 4 + 2
+                    x: bike.x - bike.w/2, y: bike.y + bike.h/2 + 5,
+                    vx: -bike.dx * 0.3 + (Math.random() - 0.5), vy: Math.random() * -2,
+                    life: 1, size: Math.random() * 5 + 2, type: 'dust'
                 });
             }
         }
@@ -132,28 +156,31 @@
             bike.torque = 0;
 
             if (keys.right) {
-                if (bike.grounded) { bike.dx += 0.6; createDust(); }
-                else bike.torque = 0.04; 
+                if (bike.grounded) { 
+                    bike.dx += 0.65; // Faster acceleration
+                    spawnDust(); 
+                } else bike.torque = 0.04; 
             }
             if (keys.left) {
-                if (bike.grounded) { bike.dx -= 0.5; createDust(); }
+                if (bike.grounded) { bike.dx -= 0.5; spawnDust(); }
                 else bike.torque = -0.04;
             }
 
             bike.dx *= bike.grounded ? bike.friction : bike.airFriction;
             bike.angVel += bike.torque;
-            bike.angVel *= 0.94; 
+            bike.angVel *= 0.93; // Air friction on rotation
             bike.angle += bike.angVel;
-            bike.wheelRotation += bike.dx * 0.1;
+            bike.wheelRotation += bike.dx * 0.12;
 
             bike.grounded = false;
             let track = tracks[currentLevel - 1];
             
+            // Collision & Physics
             for (let i = 0; i < track.length - 1; i++) {
                 if (bike.x >= track[i].x && bike.x <= track[i + 1].x) {
                     let p1 = track[i], p2 = track[i + 1];
                     let t = (bike.x - p1.x) / (p2.x - p1.x);
-                    let trackY = p1.y + (p2.y - p1.y) * t - bike.h/2 - bike.wheelRadius + 2;
+                    let trackY = p1.y + (p2.y - p1.y) * t - bike.h/2 - bike.wheelRadius + 3; // Added +3 for suspension look
 
                     if (bike.y >= trackY) {
                         bike.y = trackY;
@@ -162,13 +189,15 @@
 
                         let targetAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
                         if(Math.abs(bike.torque) < 0.01) {
-                            bike.angle += (targetAngle - bike.angle) * 0.3;
+                            bike.angle += (targetAngle - bike.angle) * 0.4; // Snappier align
                         }
 
+                        // Crash Detection
                         let angleDeg = bike.angle * (180/Math.PI);
-                        if (angleDeg > 130 || angleDeg < -130) {
+                        if (angleDeg > 135 || angleDeg < -135) {
                             isGameOver = true;
-                            overlayText.innerHTML = "CRASHED! 💥<br><span style='font-size: 24px;'>Uth bhai, dobara try kar!</span>";
+                            overlayText.innerHTML = "CRASHED! 💥";
+                            overlaySubtext.innerHTML = "Arre yaar, dhyan se balance karo!";
                             overlayButton.innerText = "Try Again";
                             overlay.style.display = 'flex';
                         }
@@ -179,18 +208,30 @@
 
             bike.x += bike.dx;
 
-            if (bike.x > track[track.length - 2].x) {
+            // UI Updates
+            let speed = Math.floor(Math.abs(bike.dx) * 10);
+            speedText.innerText = `⚡ Speed: ${speed}`;
+
+            let finishLineX = track[track.length - 2].x;
+            let progress = Math.min(100, Math.max(0, (bike.x / finishLineX) * 100));
+            progressFill.style.width = progress + '%';
+
+            // Win Condition
+            if (bike.x > finishLineX) {
                 isLevelComplete = true;
                 if(currentLevel >= tracks.length) {
-                    overlayText.innerHTML = "🏆 CHAMPION! 🏆<br><span style='font-size: 24px;'>Tune saare 5 level paar kar liye!</span>";
+                    overlayText.innerHTML = "🏆 LEGEND! 🏆";
+                    overlaySubtext.innerHTML = "Tumne saare 7 levels faad diye!";
                     overlayButton.innerText = "Play Again (Level 1)";
                 } else {
                     overlayText.innerHTML = `Level ${currentLevel} Complete! 🏁`;
+                    overlaySubtext.innerHTML = themes[currentLevel].name + " is waiting for you...";
                     overlayButton.innerText = "Next Level";
                 }
                 overlay.style.display = 'flex';
             }
 
+            // Update Particles
             for(let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
                 p.x += p.vx; p.y += p.vy;
@@ -198,8 +239,9 @@
                 if(p.life <= 0) particles.splice(i, 1);
             }
 
+            // Smooth Camera
             targetCameraX = bike.x - canvas.width * 0.35; 
-            cameraX += (targetCameraX - cameraX) * 0.1; 
+            cameraX += (targetCameraX - cameraX) * 0.12; 
         }
 
         function drawWheel(x, y) {
@@ -207,81 +249,96 @@
             ctx.translate(x, y);
             ctx.rotate(bike.wheelRotation);
             
+            // Tire with grip
             ctx.fillStyle = '#111';
             ctx.beginPath(); ctx.arc(0, 0, bike.wheelRadius, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#333'; ctx.lineWidth = 3; ctx.setLineDash([4, 4]);
+            ctx.beginPath(); ctx.arc(0, 0, bike.wheelRadius, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+            
+            // Rim and Spokes
             ctx.strokeStyle = '#ccc'; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.arc(0, 0, bike.wheelRadius - 2, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, 0, bike.wheelRadius - 3, 0, Math.PI * 2); ctx.stroke();
             ctx.strokeStyle = '#7f8c8d'; ctx.lineWidth = 1;
-            for(let i=0; i<4; i++) {
-                ctx.beginPath();
-                ctx.moveTo(-bike.wheelRadius+2, 0); ctx.lineTo(bike.wheelRadius-2, 0); ctx.stroke();
-                ctx.rotate(Math.PI / 4);
+            for(let i=0; i<5; i++) {
+                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(bike.wheelRadius-3, 0); ctx.stroke();
+                ctx.rotate((Math.PI * 2) / 5);
             }
-            ctx.fillStyle = '#fff';
-            ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
             ctx.restore();
         }
 
         function draw() {
+            let t = themes[currentLevel - 1];
+            let track = tracks[currentLevel - 1];
+
+            // Sky
             let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            skyGrad.addColorStop(0, "#4facfe");
-            skyGrad.addColorStop(1, "#00f2fe");
+            skyGrad.addColorStop(0, t.sky1);
+            skyGrad.addColorStop(1, t.sky2);
             ctx.fillStyle = skyGrad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            let track = tracks[currentLevel - 1];
-
+            // Parallax Mountains
             ctx.save();
-            ctx.translate(-(cameraX * 0.3), 0); 
-            ctx.fillStyle = '#7ebdb4'; 
+            ctx.translate(-(cameraX * 0.2), 0); 
+            ctx.fillStyle = t.mtn; 
             ctx.beginPath(); ctx.moveTo(-1000, canvas.height);
-            for(let i=-1000; i<8000; i+=300) { ctx.lineTo(i, 200 + Math.sin(i*0.01)*50); }
-            ctx.lineTo(8000, canvas.height); ctx.fill();
+            for(let i=-1000; i<9000; i+=250) { ctx.lineTo(i, 150 + Math.sin(i*0.015)*80); }
+            ctx.lineTo(9000, canvas.height); ctx.fill();
             ctx.restore();
 
+            // World Drawing
             ctx.save();
             ctx.translate(-cameraX, 0); 
 
-            ctx.fillStyle = '#8B5A2B'; 
+            // Track Dirt (Bottom part)
+            ctx.fillStyle = t.bottom; 
             ctx.beginPath();
-            ctx.moveTo(track[0].x, canvas.height + 50);
+            ctx.moveTo(track[0].x, canvas.height + 100);
             for (let i = 0; i < track.length; i++) ctx.lineTo(track[i].x, track[i].y);
-            ctx.lineTo(track[track.length-1].x, canvas.height + 50);
+            ctx.lineTo(track[track.length-1].x, canvas.height + 100);
             ctx.fill();
 
-            ctx.strokeStyle = '#27ae60';
-            ctx.lineWidth = 12;
+            // Track Top Layer
+            ctx.strokeStyle = t.top;
+            ctx.lineWidth = 14;
             ctx.lineJoin = 'round'; ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(track[0].x, track[0].y);
             for (let i = 1; i < track.length; i++) ctx.lineTo(track[i].x, track[i].y);
             ctx.stroke();
 
-            ctx.shadowColor = 'rgba(255, 50, 50, 0.8)';
-            ctx.shadowBlur = 10;
-            ctx.strokeStyle = '#ff3b30';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(track[0].x, track[0].y);
-            for (let i = 1; i < track.length; i++) ctx.lineTo(track[i].x, track[i].y);
-            ctx.stroke();
-            ctx.shadowBlur = 0; 
-
+            // Finish Line
             let finishX = track[track.length-2].x;
             let finishY = track[track.length-2].y;
-            ctx.fillStyle = '#555'; ctx.fillRect(finishX, finishY - 120, 6, 120); 
-            ctx.fillStyle = 'white'; ctx.fillRect(finishX + 6, finishY - 120, 50, 40);
-            ctx.fillStyle = 'black'; ctx.fillRect(finishX + 6, finishY - 120, 25, 20); ctx.fillRect(finishX + 31, finishY - 100, 25, 20);
+            ctx.fillStyle = '#bdc3c7'; ctx.fillRect(finishX, finishY - 140, 8, 140); 
+            ctx.fillStyle = 'white'; ctx.fillRect(finishX + 8, finishY - 130, 60, 40);
+            ctx.fillStyle = 'black'; ctx.fillRect(finishX + 8, finishY - 130, 30, 20); ctx.fillRect(finishX + 38, finishY - 110, 30, 20);
             
+            // Dust Particles
             particles.forEach(p => {
-                ctx.fillStyle = `rgba(180, 150, 120, ${p.life})`;
-                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+                if(p.type === 'dust') {
+                    ctx.fillStyle = `rgba(200, 180, 150, ${p.life})`;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+                }
             });
 
+            // DRAW BIKE
             ctx.save();
             ctx.translate(bike.x, bike.y);
             ctx.rotate(bike.angle);
 
+            // NITRO FLAME (If racing)
+            if(keys.right && bike.grounded) {
+                ctx.fillStyle = (Math.random() > 0.5) ? '#ff9f43' : '#ee5253';
+                ctx.beginPath();
+                ctx.moveTo(-bike.w/2 - 5, bike.h/2 - 5); // Exhaust position
+                ctx.lineTo(-bike.w/2 - 25 - Math.random()*15, bike.h/2 - 5 + (Math.random()*6-3));
+                ctx.lineTo(-bike.w/2 - 5, bike.h/2);
+                ctx.fill();
+            }
+
+            // Bike Chassis
             ctx.fillStyle = '#e74c3c';
             ctx.beginPath();
             ctx.moveTo(-bike.w/2 + 5, -bike.h/2 + 5);
@@ -291,30 +348,22 @@
             ctx.closePath();
             ctx.fill();
 
-            ctx.fillStyle = 'yellow';
-            ctx.beginPath(); ctx.arc(bike.w/2 - 5, -bike.h/2 + 5, 4, 0, Math.PI*2); ctx.fill();
+            // Shocks/Suspension lines
+            ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(-bike.w/2 + 8, bike.h/2); ctx.lineTo(-bike.w/2 + 2, 0); ctx.stroke(); // Rear shock
+            ctx.beginPath(); ctx.moveTo(bike.w/2 - 8, bike.h/2); ctx.lineTo(bike.w/2 - 2, -bike.h/2 + 2); ctx.stroke(); // Front fork
 
-            ctx.fillStyle = '#2c3e50'; 
-            ctx.fillRect(-8, -bike.h/2 - 15, 16, 18);
-            ctx.fillStyle = '#f1c40f'; 
-            ctx.beginPath(); ctx.arc(2, -bike.h/2 - 18, 11, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#34495e';
-            ctx.fillRect(4, -bike.h/2 - 22, 8, 6);
+            // Rider
+            ctx.fillStyle = '#2c3e50'; ctx.fillRect(-8, -bike.h/2 - 15, 16, 18);
+            ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.arc(2, -bike.h/2 - 18, 11, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#111'; ctx.fillRect(4, -bike.h/2 - 22, 8, 6);
 
+            // Wheels
             drawWheel(-bike.w/2 + 8, bike.h/2); 
             drawWheel(bike.w/2 - 8, bike.h/2);  
 
             ctx.restore(); 
             ctx.restore(); 
-
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 26px "Segoe UI", sans-serif';
-            ctx.shadowColor = 'black'; ctx.shadowBlur = 4;
-            ctx.fillText(`🏆 Level: ${currentLevel} / 5`, 20, 40);
-            
-            let distance = Math.max(0, Math.floor((bike.x - 100) / 10));
-            ctx.fillText(`📏 Dist: ${distance}m`, 20, 75);
-            ctx.shadowBlur = 0; 
         }
 
         function loop() {
