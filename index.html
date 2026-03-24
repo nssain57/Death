@@ -3,98 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mini Bike Touch Controls</title>
+    <title>Advanced Bike Race - Touch</title>
     <style>
-        body {
-            margin: 0;
-            background-color: #87CEEB;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            font-family: Arial, sans-serif;
-            overflow: hidden; /* Screen scroll na ho */
-        }
-        canvas {
-            background-color: #fff;
-            border: 4px solid #333;
-            border-radius: 10px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-            max-width: 95%; /* Tablet screen par fit aane ke liye */
-        }
-        .controls {
-            margin-top: 20px;
-            display: flex;
-            gap: 40px;
-            width: 100%;
-            justify-content: center;
-        }
-        .btn {
-            background-color: #e74c3c;
-            color: white;
-            border: none;
-            padding: 20px 40px;
-            font-size: 24px;
-            font-weight: bold;
-            border-radius: 15px;
-            box-shadow: 0 5px 10px rgba(0,0,0,0.3);
-            user-select: none;
-            touch-action: manipulation; /* Touch delay hatane ke liye */
-        }
-        .btn:active {
-            background-color: #c0392b;
-            transform: translateY(4px);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
-        .btn-race {
-            background-color: #2ecc71;
-        }
-        .btn-race:active {
-            background-color: #27ae60;
-        }
+        body { margin: 0; background-color: #87CEEB; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; overflow: hidden; user-select: none; }
+        #gameCanvas { background-color: #fff; border: 4px solid #333; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); max-width: 95%; max-height: 80vh; }
+        .controls { position: fixed; bottom: 20px; display: flex; gap: 40px; width: 100%; justify-content: center; padding: 0 10px; box-sizing: border-box; }
+        .btn { background-color: #e74c3c; color: white; border: none; padding: 25px 35px; font-size: 26px; font-weight: bold; border-radius: 20px; box-shadow: 0 5px 10px rgba(0,0,0,0.3); touch-action: manipulation; flex-grow: 1; text-align: center; }
+        .btn:active { background-color: #c0392b; transform: translateY(4px); box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .btn-race { background-color: #2ecc71; }
+        .btn-race:active { background-color: #27ae60; }
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: white; display: none; flex-direction: column; justify-content: center; align-items: center; font-size: 40px; font-weight: bold; }
+        #overlay button { margin-top: 20px; padding: 15px 30px; font-size: 24px; border-radius: 10px; background: #3498db; color: white; border: none; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <h2 style="color: #333;">Bike Physics - Touch Controls</h2>
     <canvas id="gameCanvas" width="800" height="400"></canvas>
     
     <div class="controls">
-        <button class="btn" id="btnLeft">Peeche</button>
-        <button class="btn btn-race" id="btnRight">Race (Aage)</button>
+        <button class="btn" id="btnLeft">Peeche / Tilt Back</button>
+        <button class="btn btn-race" id="btnRight">Race / Tilt Fwd</button>
+    </div>
+
+    <div id="overlay">
+        <div id="overlayText">Level Complete!</div>
+        <button id="overlayButton" onclick="handleOverlay()">Next Level</button>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('overlay');
+        const overlayText = document.getElementById('overlayText');
+        const overlayButton = document.getElementById('overlayButton');
 
-        // Bike Object
+        // Game State variables
+        let currentLevel = 1;
+        let score = 0;
+        let isGameOver = false;
+        let isLevelComplete = false;
+
+        // Bike Object properties
         const bike = {
-            x: 100,
-            y: 50,
-            width: 60,
-            height: 30,
-            dx: 0,
-            dy: 0,
-            gravity: 0.6,
-            friction: 0.95,
-            grounded: false
+            x: 50, y: 150,
+            w: 55, h: 25, // Draw w/h, physics uses w/h for collisions
+            dx: 0, dy: 0,
+            torque: 0, // for air tilt
+            angle: 0, angVel: 0,
+            gravity: 0.5, friction: 0.96,
+            grounded: false, canJump: false,
+            wheelRadius: 10
         };
 
-        const groundY = 320;
+        // Current track segment for collision
+        let currentTrackPoint = 0;
 
-        // Button States
+        // Level Track Points (X, Y)
+        const tracks = [
+            // Level 1: Simple hills and a loop
+            [
+                {x: 0, y: 350}, {x: 100, y: 350}, {x: 200, y: 320}, {x: 300, y: 300}, {x: 400, y: 320}, 
+                {x: 500, y: 350}, {x: 600, y: 350}, {x: 650, y: 200}, {x: 700, y: 350}, {x: 750, y: 350},
+                {x: 800, y: 350}, {x: 900, y: 350} // Offscreen end
+            ],
+            // Level 2: Bigger hills, gap and a loop
+            [
+                {x: 0, y: 350}, {x: 150, y: 350}, {x: 250, y: 250}, {x: 350, y: 350}, {x: 450, y: 350}, 
+                {x: 500, y: 350}, {x: 550, y: 250}, {x: 600, y: 350}, {x: 650, y: 350}, {x: 700, y: 150},
+                {x: 750, y: 150}, {x: 800, y: 350}, {x: 850, y: 350}, {x: 900, y: 350} // offscreen
+            ],
+            // Level 3: Extreme! Steeper, bigger loops
+            [
+                {x: 0, y: 350}, {x: 100, y: 350}, {x: 150, y: 150}, {x: 200, y: 150}, {x: 250, y: 350}, 
+                {x: 300, y: 350}, {x: 350, y: 250}, {x: 400, y: 100}, {x: 450, y: 250}, {x: 500, y: 350},
+                {x: 550, y: 350}, {x: 600, y: 200}, {x: 650, y: 350}, {x: 700, y: 350}, {x: 750, y: 150},
+                {x: 800, y: 150}, {x: 850, y: 350}, {x: 900, y: 350} // offscreen
+            ]
+        ];
+
+        // Button States for tablet
         const keys = { right: false, left: false };
-
-        // Button Elements
         const btnLeft = document.getElementById('btnLeft');
         const btnRight = document.getElementById('btnRight');
 
         // Functions for buttons (Touch + Mouse support)
         const startRight = (e) => { e.preventDefault(); keys.right = true; };
         const stopRight = (e) => { e.preventDefault(); keys.right = false; };
-        
         const startLeft = (e) => { e.preventDefault(); keys.left = true; };
         const stopLeft = (e) => { e.preventDefault(); keys.left = false; };
 
@@ -112,74 +106,217 @@
         btnLeft.addEventListener('mouseup', stopLeft);
         btnLeft.addEventListener('mouseleave', stopLeft);
 
+        // Track collision logic
+        function findTrackSegment(x) {
+            for (let i = 0; i < tracks[currentLevel - 1].length - 1; i++) {
+                if (x >= tracks[currentLevel - 1][i].x && x <= tracks[currentLevel - 1][i + 1].x) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        // Lerp function for smooth track interpolation
+        function lerp(a, b, t) {
+            return a + (b - a) * t;
+        }
+
+        function resetLevel(newLevel) {
+            currentLevel = newLevel;
+            score = 0;
+            isGameOver = false;
+            isLevelComplete = false;
+            bike.x = 50; bike.y = 150;
+            bike.dx = 0; bike.dy = 0;
+            bike.angle = 0; bike.angVel = 0;
+            bike.torque = 0;
+            bike.grounded = false;
+            overlay.style.display = 'none';
+        }
+
+        function handleOverlay() {
+            if (isGameOver) {
+                resetLevel(1);
+            } else if (isLevelComplete) {
+                if (currentLevel < tracks.length) {
+                    resetLevel(currentLevel + 1);
+                } else {
+                    resetLevel(1); // Back to start after final level
+                }
+            }
+        }
 
         function update() {
+            if (isGameOver || isLevelComplete) return;
+
             // Gravity
             bike.dy += bike.gravity;
             bike.y += bike.dy;
 
-            // Ground Collision
-            if (bike.y + bike.height >= groundY) {
-                bike.y = groundY - bike.height;
-                bike.dy = 0;
-                bike.grounded = true;
-            } else {
-                bike.grounded = false;
+            // Movement and Torque logic
+            bike.torque = 0; // reset air torque
+            if (keys.right) {
+                if (bike.grounded) {
+                    bike.dx += 0.9; // Normal acceleration
+                } else {
+                    bike.torque = 0.03; // In-air tilt forward
+                }
+            }
+            if (keys.left) {
+                if (bike.grounded) {
+                    bike.dx -= 0.6; // Normal braking/reverse
+                } else {
+                    bike.torque = -0.03; // In-air tilt back
+                }
             }
 
-            // Movement logic
-            if (keys.right && bike.grounded) {
-                bike.dx += 0.8; // Race speed
-            }
-            if (keys.left && bike.grounded) {
-                bike.dx -= 0.8; // Back/Brake speed
+            // Air Rotation
+            bike.angVel += bike.torque;
+            bike.angVel *= 0.98; // Air angular friction
+            bike.angle += bike.angVel;
+
+            // Track Collision
+            bike.grounded = false;
+            currentTrackPoint = findTrackSegment(bike.x);
+            if (currentTrackPoint !== -1) {
+                const p1 = tracks[currentLevel - 1][currentTrackPoint];
+                const p2 = tracks[currentLevel - 1][currentTrackPoint + 1];
+                
+                const t = (bike.x - p1.x) / (p2.x - p1.x);
+                const trackY = lerp(p1.y, p2.y, t) - bike.h/2 - bike.wheelRadius;
+
+                // Wheel contact
+                if (bike.y >= trackY) {
+                    bike.y = trackY;
+                    bike.dy = 0;
+                    bike.grounded = true;
+                    bike.dx *= bike.friction; // friction on ground
+
+                    // Align to track slope
+                    const angleRad = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                    
+                    // Simple alignment check, don't update if air torque is strong
+                    if(Math.abs(bike.torque) < 0.01){
+                        bike.angle = angleRad;
+                    }
+
+                    // Check for crash condition (bad landing)
+                    const angleDeg = bike.angle * (180/Math.PI);
+                    if (angleDeg > 110 || angleDeg < -110) {
+                        isGameOver = true;
+                        overlayText.innerText = "CRASHED!";
+                        overlayButton.innerText = "Try Again";
+                        overlay.style.display = 'flex';
+                    }
+                }
+            } else if (bike.x < 0) { // Off left edge
+                bike.x = 0;
+                bike.dx = 0;
+            } else if (bike.x > 800) { // off right edge
+                // End condition for simple loop tracks - go past a certain point
+                // Level completion when bike reaches the very last point
+                if(currentLevel < tracks.length && findTrackSegment(tracks[currentLevel-1][tracks[currentLevel-1].length-1].x) == -1){
+                  isLevelComplete = true;
+                  overlayText.innerText = "Level Complete!";
+                  overlayButton.innerText = "Next Level";
+                  overlay.style.display = 'flex';
+                } else if(currentLevel == tracks.length){
+                  isLevelComplete = true;
+                  overlayText.innerText = "Congratulations, you won!";
+                  overlayButton.innerText = "Play Again";
+                  overlay.style.display = 'flex';
+                }
             }
 
-            // Max speed limit
-            if(bike.dx > 12) bike.dx = 12;
-            if(bike.dx < -12) bike.dx = -12;
+            // Screen loop
+            if(bike.x > canvas.width) bike.x = -bike.w;
+            if(bike.x < -bike.w) bike.x = canvas.width;
 
-            // Friction
-            bike.dx *= bike.friction;
             bike.x += bike.dx;
 
-            // Screen loop (ek side se bahar jaye toh dusri side se aaye)
-            if(bike.x > canvas.width) bike.x = -bike.width;
-            if(bike.x < -bike.width) bike.x = canvas.width;
+            // Score update
+            if (bike.dx > 0) {
+                score += bike.dx;
+            }
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Zameen
+            // Draw Track and Background hills
             ctx.fillStyle = '#E2C27D'; 
-            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+            ctx.fillRect(0, 350, canvas.width, canvas.height - 350); // Base Ground
             
-            // Track ki laal line
+            const currentTrack = tracks[currentLevel - 1];
+            
+            ctx.fillStyle = '#D4AF37'; // Golden/sandy hill color
+            ctx.beginPath();
+            ctx.moveTo(currentTrack[0].x, canvas.height);
+            for (let i = 0; i < currentTrack.length; i++) {
+                ctx.lineTo(currentTrack[i].x, currentTrack[i].y);
+            }
+            ctx.lineTo(currentTrack[currentTrack.length-1].x, canvas.height);
+            ctx.fill();
+
+            // Track red line
             ctx.strokeStyle = 'red';
             ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
             ctx.beginPath();
-            ctx.moveTo(0, groundY);
-            ctx.lineTo(canvas.width, groundY);
+            ctx.moveTo(currentTrack[0].x, currentTrack[0].y);
+            for (let i = 1; i < currentTrack.length; i++) {
+                ctx.lineTo(currentTrack[i].x, currentTrack[i].y);
+            }
             ctx.stroke();
+
+            // Draw Bike
+            ctx.save();
+            ctx.translate(bike.x, bike.y);
+            ctx.rotate(bike.angle);
 
             // Bike Body
             ctx.fillStyle = '#3498db';
-            ctx.fillRect(bike.x, bike.y, bike.width, bike.height);
+            ctx.fillRect(-bike.w/2, -bike.h/2, bike.w, bike.h);
             
+            // simple player/rider
+            ctx.fillStyle = '#f1c40f'; // helmet
+            ctx.beginPath(); ctx.arc(-5, -bike.h/2 - 10, 8, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#111'; // face
+            ctx.fillRect(-5, -bike.h/2 - 5, 12, 12);
+
             // Bike Wheels
             ctx.fillStyle = '#111';
             ctx.beginPath();
-            ctx.arc(bike.x + 15, bike.y + bike.height, 12, 0, Math.PI * 2);
-            ctx.arc(bike.x + bike.width - 15, bike.y + bike.height, 12, 0, Math.PI * 2);
+            ctx.arc(-bike.w/2 + 10, bike.h/2, bike.wheelRadius, 0, Math.PI * 2);
+            ctx.arc(bike.w/2 - 10, bike.h/2, bike.wheelRadius, 0, Math.PI * 2);
             ctx.fill();
-            
-            // Wheel Rims (safed dot)
+            // rims
             ctx.fillStyle = '#fff';
             ctx.beginPath();
-            ctx.arc(bike.x + 15, bike.y + bike.height, 4, 0, Math.PI * 2);
-            ctx.arc(bike.x + bike.width - 15, bike.y + bike.height, 4, 0, Math.PI * 2);
+            ctx.arc(-bike.w/2 + 10, bike.h/2, 4, 0, Math.PI * 2);
+            ctx.arc(bike.w/2 - 10, bike.h/2, 4, 0, Math.PI * 2);
             ctx.fill();
+
+            ctx.restore();
+
+            // Draw Score and Level
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Level: ${currentLevel}`, 20, 30);
+            ctx.fillText(`Score: ${Math.floor(score/10)}`, 20, 60);
+
+            // Tutorial hints
+            if (currentLevel == 1 && score < 100) {
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+              ctx.fillRect(canvas.width/2 - 150, canvas.height/2 - 30, 300, 60);
+              ctx.fillStyle = '#333';
+              ctx.font = '18px Arial';
+              ctx.textAlign = 'center';
+              ctx.fillText("Race daba kar loop ke upar jao!", canvas.width/2, canvas.height/2);
+              ctx.fillText("Hawa mein tilt karo!", canvas.width/2, canvas.height/2 + 20);
+            }
         }
 
         function loop() {
